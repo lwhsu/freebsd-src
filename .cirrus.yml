@@ -3,6 +3,7 @@ env:
   ARCH: amd64
 
 task:
+  timeout_in: 120m
   env:
     matrix:
       - TARGET: amd64
