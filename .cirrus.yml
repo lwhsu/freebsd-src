@@ -11,6 +11,7 @@ task:
   install_script:
   - pkg install -y qemu-devel
   - fetch https://people.freebsd.org/~emaste/OVMF.fd
+  - mount -t tmpfs tmpfs /usr/obj
   script:
   - make -j$(sysctl -n hw.ncpu) -DNO_CLEAN WITHOUT_TOOLCHAIN=yes buildworld buildkernel
   test_script:
