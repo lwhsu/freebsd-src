@@ -12,7 +12,7 @@ task:
   - pkg install -y qemu-devel
   - fetch https://people.freebsd.org/~emaste/OVMF.fd
   script:
-  - make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel
+  - make -j$(sysctl -n hw.ncpu) -DNO_CLEAN WITHOUT_TOOLCHAIN=yes buildworld buildkernel
   test_script:
   - sh tools/ci/qemu-test.sh
 
