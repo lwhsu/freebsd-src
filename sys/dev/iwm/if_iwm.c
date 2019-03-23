@@ -2208,7 +2208,8 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	}
 
 	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000) {
-		memcpy(data->nvm_ch_flags, &nvm_sw[IWM_NVM_CHANNELS],
+		memcpy(data->nvm_ch_flags, sc->cfg->nvm_type == IWM_NVM_SDP ?
+		    &regulatory[0] : &nvm_sw[IWM_NVM_CHANNELS],
 		    IWM_NUM_CHANNELS * sizeof(uint16_t));
 	} else {
 		memcpy(data->nvm_ch_flags, &regulatory[IWM_NVM_CHANNELS_8000],
@@ -2268,8 +2269,9 @@ iwm_parse_nvm_sections(struct iwm_softc *sc, struct iwm_nvm_section *sections)
 	sw = (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_SW].data;
 	calib = (const uint16_t *)
 	    sections[IWM_NVM_SECTION_TYPE_CALIBRATION].data;
-	regulatory = (const uint16_t *)
-	    sections[IWM_NVM_SECTION_TYPE_REGULATORY].data;
+	regulatory = sc->cfg->nvm_type == IWM_NVM_SDP ?
+	    (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_REGULATORY_SDP].data :
+	    (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_REGULATORY].data;
 	mac_override = (const uint16_t *)
 	    sections[IWM_NVM_SECTION_TYPE_MAC_OVERRIDE].data;
 	phy_sku = (const uint16_t *)sections[IWM_NVM_SECTION_TYPE_PHY_SKU].data;
@@ -2394,8 +2396,6 @@ static int
 iwm_pcie_load_firmware_chunk(struct iwm_softc *sc, uint32_t dst_addr,
 			     bus_addr_t phy_addr, uint32_t byte_cnt)
 {
-	int ret;
-
 	sc->sc_fw_chunk_done = 0;
 
 	if (!iwm_nic_lock(sc))
@@ -2427,14 +2427,9 @@ iwm_pcie_load_firmware_chunk(struct iwm_softc *sc, uint32_t dst_addr,
 	iwm_nic_unlock(sc);
 
 	/* wait up to 5s for this segment to load */
-	ret = 0;
-	while (!sc->sc_fw_chunk_done) {
-		ret = msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfw", hz);
-		if (ret)
-			break;
-	}
+	msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfw", hz * 5);
 
-	if (ret != 0) {
+	if (!sc->sc_fw_chunk_done) {
 		device_printf(sc->sc_dev,
 		    "fw chunk addr 0x%x len %d failed to load\n",
 		    dst_addr, byte_cnt);
