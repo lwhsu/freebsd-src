@@ -863,7 +863,7 @@ iwm_read_firmware(struct iwm_softc *sc)
 
 		default:
 			device_printf(sc->sc_dev,
-			    "%s: unknown firmware section %d, abort\n",
+			    "%s: unknown firmware section %d, skip\n",
 			    __func__, tlv_type);
 		}
 	}
