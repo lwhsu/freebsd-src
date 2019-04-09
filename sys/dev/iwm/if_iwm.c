@@ -2505,17 +2505,13 @@ static int
 iwm_pcie_load_cpu_sections(struct iwm_softc *sc,
 	const struct iwm_fw_img *image, int cpu, int *first_ucode_section)
 {
-	int shift_param;
 	int i, ret = 0;
 	uint32_t last_read_idx = 0;
 
-	if (cpu == 1) {
-		shift_param = 0;
+	if (cpu == 1)
 		*first_ucode_section = 0;
-	} else {
-		shift_param = 16;
+	else
 		(*first_ucode_section)++;
-	}
 
 	for (i = *first_ucode_section; i < IWM_UCODE_SECTION_MAX; i++) {
 		last_read_idx = i;
