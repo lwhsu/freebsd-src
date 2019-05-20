@@ -173,6 +173,9 @@ struct muge_softc {
 	struct mtx		sc_mtx;
 	struct usb_xfer		*sc_xfer[MUGE_N_TRANSFER];
 	int			sc_phyno;
+	uint32_t		sc_leds;
+	uint16_t		sc_led_modes;
+	uint16_t		sc_led_modes_mask;
 
 	/* Settings for the mac control (MAC_CSR) register. */
 	uint32_t		sc_rfe_ctl;
@@ -889,8 +892,9 @@ static int
 lan78xx_phy_init(struct muge_softc *sc)
 {
 	muge_dbg_printf(sc, "Initializing PHY.\n");
-	uint16_t bmcr;
+	uint16_t bmcr, lmsr;
 	usb_ticks_t start_ticks;
+	uint32_t hw_reg;
 	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
 
 	MUGE_LOCK_ASSERT(sc, MA_OWNED);
@@ -931,6 +935,25 @@ lan78xx_phy_init(struct muge_softc *sc)
 	bmcr |= BMCR_AUTOEN;
 	lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR, bmcr);
 	bmcr = lan78xx_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR);
+
+	/* Configure LED Modes. */
+	if (sc->sc_led_modes_mask != 0xffff) {
+		lmsr = lan78xx_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno,
+		    MUGE_PHY_LED_MODE);
+		lmsr &= sc->sc_led_modes_mask;
+		lmsr |= sc->sc_led_modes;
+		lan78xx_miibus_writereg(sc->sc_ue.ue_dev, sc->sc_phyno,
+		    MUGE_PHY_LED_MODE, lmsr);
+	}
+
+	/* Enable appropriate LEDs. */
+	if (sc->sc_leds != 0 &&
+	    lan78xx_read_reg(sc, ETH_HW_CFG, &hw_reg) == 0) {
+		hw_reg &= ~(ETH_HW_CFG_LEDO_EN_ | ETH_HW_CFG_LED1_EN_ |
+			    ETH_HW_CFG_LED2_EN_ | ETH_HW_CFG_LED3_EN_ );
+		hw_reg |= sc->sc_leds;
+		lan78xx_write_reg(sc, ETH_HW_CFG, hw_reg);
+	}
 	return (0);
 }
 
@@ -1591,6 +1614,53 @@ muge_set_mac_addr(struct usb_ether *ue)
 }
 
 /**
+ *	muge_set_leds - Initializes NIC LEDs pattern
+ *	@ue: the USB ethernet device
+ *
+ *	Tries to store the LED modes.
+ *	Supports only DTB blob like the	Linux driver does.
+ */
+static void
+muge_set_leds(struct usb_ether *ue)
+{
+	struct muge_softc *sc = uether_getsc(ue);
+#ifdef FDT
+	char compatible[16];
+	struct usb_attach_arg *uaa = device_get_ivars(ue->ue_dev);
+	phandle_t root, node;
+	pcell_t led_modes[4];	/* 4 LEDs are possible */
+	ssize_t proplen;
+	uint32_t count;
+#endif
+
+	sc->sc_leds = 0;	/* no LED mode is set */
+	sc->sc_led_modes = 0;
+	sc->sc_led_modes_mask = 0xffff;
+	if (lan78xx_eeprom_present(sc))
+		return;
+#ifdef FDT
+	snprintf(compatible, sizeof(compatible), "usb%x,%x",
+	    uaa->info.idVendor, uaa->info.idProduct);
+	root = OF_finddevice("/");
+	if ((node = muge_fdt_find_eth_node(root, compatible)) != -1 &&
+	    (proplen = OF_getencprop(node, "microchip,led-modes", led_modes,
+	    sizeof(led_modes))) > 0) {
+		count = proplen / sizeof( uint32_t );
+		sc->sc_leds = (count > 0) * ETH_HW_CFG_LEDO_EN_ |
+			      (count > 1) * ETH_HW_CFG_LED1_EN_ |
+			      (count > 2) * ETH_HW_CFG_LED2_EN_ |
+			      (count > 3) * ETH_HW_CFG_LED3_EN_;
+		while (count-- > 0) {
+			sc->sc_led_modes |=
+			    (led_modes[count] & 0xf) << (4 * count);
+			sc->sc_led_modes_mask <<= 4;
+		}
+		muge_dbg_printf(sc, "LED modes set from FDT blob\n");
+	}
+#endif
+}
+
+/**
  *	muge_attach_post - Called after the driver attached to the USB interface
  *	@ue: the USB ethernet device
  *
@@ -1610,6 +1680,7 @@ muge_attach_post(struct usb_ether *ue)
 	sc->sc_phyno = 1;
 
 	muge_set_mac_addr(ue);
+	muge_set_leds(ue);
 
 	/* Initialise the chip for the first time */
 	lan78xx_chip_init(sc);
