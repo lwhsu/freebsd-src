@@ -793,8 +793,85 @@ iwm_read_firmware(struct iwm_softc *sc)
 			break;
 		}
 
+		case IWM_UCODE_TLV_INIT_EVTLOG_PTR:
+			if (tlv_len != sizeof(uint32_t)) {
+				error = EINVAL;
+				device_printf(sc->sc_dev,
+				    "%s: IWM_UCODE_TLV_INIT_EVTLOG_PTR: "
+				    "tlv_len (%u) < sizeof(uint32_t)\n",
+				    __func__, tlv_len);
+				goto parse_out;
+			}
+			sc->sc_fw.init_evtlog_ptr =
+			    le32_to_cpup((const uint32_t *)tlv_data);
+			break;
+
+		case IWM_UCODE_TLV_INIT_EVTLOG_SIZE:
+			if (tlv_len != sizeof(uint32_t)) {
+				error = EINVAL;
+				device_printf(sc->sc_dev,
+				    "%s: IWM_UCODE_TLV_INIT_EVTLOG_SIZE: "
+				    "tlv_len (%u) < sizeof(uint32_t)\n",
+				    __func__, tlv_len);
+				goto parse_out;
+			}
+			sc->sc_fw.init_evtlog_size =
+			    le32_to_cpup((const uint32_t *)tlv_data);
+			break;
+
+		case IWM_UCODE_TLV_INIT_ERRLOG_PTR:
+			if (tlv_len != sizeof(uint32_t)) {
+				error = EINVAL;
+				device_printf(sc->sc_dev,
+				    "%s: IWM_UCODE_TLV_INIT_ERRLOG_PTR: "
+				    "tlv_len (%u) < sizeof(uint32_t)\n",
+				    __func__, tlv_len);
+				goto parse_out;
+			}
+			sc->sc_fw.init_errlog_ptr =
+			    le32_to_cpup((const uint32_t *)tlv_data);
+			break;
+
+		case IWM_UCODE_TLV_RUNT_EVTLOG_PTR:
+			if (tlv_len != sizeof(uint32_t)) {
+				error = EINVAL;
+				device_printf(sc->sc_dev,
+				    "%s: IWM_UCODE_TLV_RUNT_EVTLOG_PTR: "
+				    "tlv_len (%u) < sizeof(uint32_t)\n",
+				    __func__, tlv_len);
+				goto parse_out;
+			}
+			sc->sc_fw.runt_evtlog_ptr =
+			    le32_to_cpup((const uint32_t *)tlv_data);
+			break;
+
+		case IWM_UCODE_TLV_RUNT_EVTLOG_SIZE:
+			if (tlv_len != sizeof(uint32_t)) {
+				error = EINVAL;
+				device_printf(sc->sc_dev,
+				    "%s: IWM_UCODE_TLV_RUNT_EVTLOG_SIZE: "
+				    "tlv_len (%u) < sizeof(uint32_t)\n",
+				    __func__, tlv_len);
+				goto parse_out;
+			}
+			sc->sc_fw.runt_evtlog_size =
+			    le32_to_cpup((const uint32_t *)tlv_data);
+			break;
+
+		case IWM_UCODE_TLV_RUNT_ERRLOG_PTR:
+			if (tlv_len != sizeof(uint32_t)) {
+				error = EINVAL;
+				device_printf(sc->sc_dev,
+				    "%s: IWM_UCODE_TLV_RUNT_ERRLOG_PTR: "
+				    "tlv_len (%u) < sizeof(uint32_t)\n",
+				    __func__, tlv_len);
+				goto parse_out;
+			}
+			sc->sc_fw.runt_errlog_ptr =
+			    le32_to_cpup((const uint32_t *)tlv_data);
+			break;
+
 		case IWM_UCODE_TLV_SDIO_ADMA_ADDR:
-		case IWM_UCODE_TLV_FW_GSCAN_CAPA:
 			/* ignore, not used by current driver */
 			break;
 
@@ -858,7 +935,17 @@ iwm_read_firmware(struct iwm_softc *sc)
 			    le32toh(((const uint32_t *)tlv_data)[2]));
 			break;
 
+		case IWM_UCODE_TLV_FW_DBG_DEST:
+		case IWM_UCODE_TLV_FW_DBG_CONF:
+		case IWM_UCODE_TLV_FW_DBG_TRIGGER:
+		case IWM_UCODE_TLV_FW_GSCAN_CAPA:
 		case IWM_UCODE_TLV_FW_MEM_SEG:
+		case IWM_UCODE_TLV_IML:
+		case IWM_UCODE_TLV_UMAC_DEBUG_ADDRS:
+		case IWM_UCODE_TLV_LMAC_DEBUG_ADDRS:
+		case IWM_UCODE_TLV_FW_RECOVERY_INFO:
+		case IWM_UCODE_TLV_FW_FSEQ_VERSION:
+			/* XXX-BZ Not implemented yet. */
 			break;
 
 		default:
@@ -5016,7 +5103,15 @@ iwm_nic_error(struct iwm_softc *sc)
 
 	device_printf(sc->sc_dev, "dumping device error log\n");
 	base = sc->error_event_table[0];
-	if (base < 0x800000) {
+
+	if (sc->cur_ucode == IWM_UCODE_INIT) {
+		if (!base)
+			base = sc->sc_fw.init_errlog_ptr;
+	} else {
+		if (!base)
+			base = sc->sc_fw.runt_errlog_ptr;
+	}
+	if (base < 0x400000) {
 		device_printf(sc->sc_dev,
 		    "Invalid error log pointer 0x%08x\n", base);
 		return;
