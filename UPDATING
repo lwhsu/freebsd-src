@@ -27,6 +27,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+2026XXXX:
+	UVC extension-unit control on /dev/video* now uses the native
+	FreeBSD ioctl interface declared in <sys/videoio_uvc.h>.
+	FBSD_UVCIOC_XU_QUERY and FBSD_UVCIOC_XU_MAP are the native ioctls
+	for the in-tree UVC driver stack. Linuxulator now translates Linux
+	UVC extension-unit ioctls to that native ABI instead of passing raw
+	Linux layouts through to the native backend.
+
 20260620:
 	On powerpc64le, long double is now IEEE 754 binary128 (quad
 	precision, 113-bit mantissa) instead of 64-bit double.  This is an

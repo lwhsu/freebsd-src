@@ -44,6 +44,7 @@
 #include <sys/mman.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <sys/videoio_uvc.h>
 #include <sys/sbuf.h>
 #include <sys/sockio.h>
 #include <sys/soundcard.h>
@@ -118,10 +119,46 @@ DEFINE_LINUX_IOCTL_SET(kcov, KCOV);
 DEFINE_LINUX_IOCTL_SET(nvme, NVME);
 #endif
 DEFINE_LINUX_IOCTL_SET(hidraw, HIDRAW);
+/*
+ * Linux UVC extension-unit ioctls are translated in sys/compat/linux.
+ * Do not pass raw Linux UVC ABI numbers or userspace layouts through to
+ * the native video backend.
+ */
+DEFINE_LINUX_IOCTL_SET(uvc, UVC);
 
 #undef DEFINE_LINUX_IOCTL_SET
 
 static int linux_ioctl_special(struct thread *, struct linux_ioctl_args *);
+
+struct linux_uvc_menu_info {
+	uint32_t		value;
+	uint8_t			name[FBSD_UVC_XU_MENU_NAME_LEN];
+};
+
+struct linux_uvc_xu_control_mapping {
+	uint32_t		id;
+	uint8_t			name[32];
+	uint8_t			entity[16];
+	uint8_t			selector;
+	uint8_t			size;
+	uint8_t			offset;
+	uint32_t		v4l2_type;
+	uint32_t		data_type;
+	l_uintptr_t		menu_info;
+	uint32_t		menu_count;
+	uint32_t		reserved[4];
+};
+
+struct linux_uvc_xu_control_query {
+	uint8_t			unit;
+	uint8_t			selector;
+	uint8_t			query;
+	uint16_t		size;
+	l_uintptr_t		data;
+};
+
+#define	LINUX_UVCIOC_CTRL_MAP_NR	0x7520
+#define	LINUX_UVCIOC_CTRL_QUERY_NR	0x7521
 
 /*
  * Keep sorted by low.
@@ -3086,6 +3123,79 @@ linux_ioctl_special(struct thread *td, struct linux_ioctl_args *args)
 	}
 
 	return (error);
+}
+
+static int
+linux_to_native_uvc_xu_query(struct fbsd_uvc_xu_query *dst,
+    const struct linux_uvc_xu_control_query *src)
+{
+	dst->direction = (src->query & 0x80) != 0 ?
+	    FBSD_UVC_XU_DIR_READ : FBSD_UVC_XU_DIR_WRITE;
+	dst->data_len = src->size;
+	dst->data_ptr = (uint64_t)(uintptr_t)PTRIN(src->data);
+	dst->unit_id = src->unit;
+	dst->control_selector = src->selector;
+	dst->request_code = src->query;
+	return (0);
+}
+
+static int
+linux_to_native_uvc_xu_map(struct fbsd_uvc_xu_map *dst,
+    const struct linux_uvc_xu_control_mapping *src)
+{
+	memset(dst, 0, sizeof(*dst));
+	dst->v4l2_id = src->id;
+	dst->v4l2_type = src->v4l2_type;
+	dst->data_kind = src->data_type;
+	dst->menu_num = src->menu_count;
+	dst->menu_ptr = (uint64_t)(uintptr_t)PTRIN(src->menu_info);
+	memcpy(dst->unit_guid, src->entity, sizeof(dst->unit_guid));
+	memcpy(dst->control_name, src->name, sizeof(dst->control_name));
+	dst->control_selector = src->selector;
+	dst->control_offset_bits = src->offset;
+	dst->control_size_bits = src->size;
+	return (0);
+}
+
+static int
+linux_ioctl_uvc(struct thread *td, struct linux_ioctl_args *args)
+{
+	struct linux_uvc_xu_control_mapping lmap;
+	struct linux_uvc_xu_control_query lquery;
+	struct fbsd_uvc_xu_map nmap;
+	struct fbsd_uvc_xu_query nquery;
+	struct file *fp;
+	int error;
+
+	switch (args->cmd & 0xffff) {
+	case LINUX_UVCIOC_CTRL_MAP_NR:
+		error = copyin(PTRIN(args->arg), &lmap, sizeof(lmap));
+		if (error != 0)
+			return (error);
+		linux_to_native_uvc_xu_map(&nmap, &lmap);
+		error = fget(td, args->fd, &cap_ioctl_rights, &fp);
+		if (error != 0)
+			return (error);
+		error = fo_ioctl(fp, FBSD_UVCIOC_XU_MAP, &nmap, td->td_ucred, td);
+		fdrop(fp, td);
+		return (error);
+
+	case LINUX_UVCIOC_CTRL_QUERY_NR:
+		error = copyin(PTRIN(args->arg), &lquery, sizeof(lquery));
+		if (error != 0)
+			return (error);
+		linux_to_native_uvc_xu_query(&nquery, &lquery);
+		error = fget(td, args->fd, &cap_ioctl_rights, &fp);
+		if (error != 0)
+			return (error);
+		error = fo_ioctl(fp, FBSD_UVCIOC_XU_QUERY, &nquery,
+		    td->td_ucred, td);
+		fdrop(fp, td);
+		return (error);
+
+	default:
+		return (ENOTTY);
+	}
 }
 
 static int

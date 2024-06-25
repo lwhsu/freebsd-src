@@ -578,6 +578,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	/* This works much better with if_cdce than if_ure */
 	USB_QUIRK(LENOVO, TBT3LAN, UQ_CFG_INDEX_1),
 	USB_QUIRK_REV(REALTEK, RTL8153, 0x31fd, 0x31fd, UQ_CFG_INDEX_1),
+
 };
 #undef USB_QUIRK_VO
 #undef USB_QUIRK_REV
@@ -711,7 +712,6 @@ usb_test_quirk_by_info(const struct usbd_lookup_info *info, uint16_t quirk)
 		goto done;
 
 	USB_MTX_LOCK(&usb_quirk_mtx);
-
 	for (x = 0; x != USB_DEV_QUIRKS_MAX; x++) {
 		/* see if quirk information does not match */
 		if ((usb_quirks[x].vid != info->idVendor) ||

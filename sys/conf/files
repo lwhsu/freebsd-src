@@ -3497,6 +3497,15 @@ dev/usb/template/usb_template_cdceem.c	optional usb_template
 #
 # USB video drivers
 #
+dev/video/video.c			optional uvc
+dev/video/video_queue.c			optional uvc
+dev/usb/video/uvc_drv.c			optional uvc
+dev/usb/video/uvc_buf.c			optional uvc
+dev/usb/video/uvc_negotiation.c		optional uvc
+dev/usb/video/uvc_v4l2.c		optional uvc
+dev/usb/video/uvc_ctrl_map.c		optional uvc
+dev/usb/video/uvc_ctrls.c		optional uvc
+dev/usb/video/uvc_quirks.c		optional uvc
 dev/usb/video/udl.c			optional udl
 dev/usb/video/uvideo.c			optional uvideo
 #

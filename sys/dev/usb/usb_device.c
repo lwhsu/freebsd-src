@@ -48,7 +48,6 @@
 #include <sys/priv.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -2501,6 +2500,55 @@ struct usb_knowndev {
 #include "usbdevs.h"
 #include "usbdevs_data.h"
 #endif					/* USB_VERBOSE */
+
+void
+device_get_usb_vidpid(device_t dev, uint32_t *vid, uint32_t *pid)
+{
+	struct usb_attach_arg *uaa;
+	struct usb_device *udev;
+	uint8_t do_unlock;
+
+	if (dev == NULL) {
+		/* should not happen */
+		return;
+	}
+	uaa = device_get_ivars(dev);
+	if (uaa == NULL) {
+		/* can happen if called at the wrong time */
+		return;
+	}
+	udev = uaa->device;
+
+	if (udev == NULL)
+		return;
+
+	do_unlock = usbd_ctrl_lock(udev);
+
+	*vid = UGETW(udev->ddesc.idVendor);
+	*pid = UGETW(udev->ddesc.idProduct);
+
+	if (do_unlock)
+		usbd_ctrl_unlock(udev);
+}
+
+int
+usb_device_is_UVC(struct usb_device *udev)
+{
+	struct usb_device_descriptor *udd = NULL;
+
+	if (!udev)
+		return 0;
+	udd = &udev->ddesc;
+
+	if (udd->bDeviceClass == 0xef &&
+	    udd->bDeviceSubClass == 0x02 &&
+	    udd->bDeviceProtocol == 0x01) {
+		return 1;
+	}
+
+	return 0;
+}
+
 
 void
 usb_set_device_strings(struct usb_device *udev)

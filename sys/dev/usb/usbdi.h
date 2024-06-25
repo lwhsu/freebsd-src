@@ -578,6 +578,7 @@ struct usb_endpoint *usbd_get_ep_by_addr(struct usb_device *udev, uint8_t ea_val
 usb_error_t	usbd_interface_count(struct usb_device *udev, uint8_t *count);
 enum usb_hc_mode usbd_get_mode(struct usb_device *udev);
 enum usb_dev_speed usbd_get_speed(struct usb_device *udev);
+void device_get_usb_vidpid(device_t dev, uint32_t *vid, uint32_t *pid);
 void	device_set_usb_desc(device_t dev);
 void	usb_pause_mtx(struct mtx *mtx, int _ticks);
 usb_error_t	usbd_set_pnpinfo(struct usb_device *udev,
@@ -687,7 +688,6 @@ usb_error_t
 	usbd_start_set_config(struct usb_device *, uint8_t);
 int	usbd_in_polling_mode(void);
 void	usbd_dummy_timeout(void *);
-
 int	usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	    struct mtx *priv_mtx, struct usb_fifo_methods *pm,
 	    struct usb_fifo_sc *f_sc, uint16_t unit, int16_t subunit,
