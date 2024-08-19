@@ -275,7 +275,7 @@ uvc_v4l2_enum_input(struct uvc_drv_ctrl *ctrl, struct v4l2_input *input)
 	uint32_t index = input->index;
 	struct uvc_drv_entity *it;
 
-	/*WARTHOG: to_be_implement here, hard code no SELECTOR */
+	/*WARNING: to_be_implement here, hard code no SELECTOR */
 	if (index)
 		return EINVAL;
 

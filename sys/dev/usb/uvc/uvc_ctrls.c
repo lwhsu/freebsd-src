@@ -756,7 +756,7 @@ __uvc_query_v4l2_ctrl(struct uvc_drv_video *video,
 	v4l2_ctrl->flags = 0;
 
 	/*todo*/
-	DPRINTF("WARTHOG __TO_BE_IMPLEMENT__ other par %s\n", __func__);
+	DPRINTF("WARNING __TO_BE_IMPLEMENT__ other par %s\n", __func__);
 
 	return 0;
 }
