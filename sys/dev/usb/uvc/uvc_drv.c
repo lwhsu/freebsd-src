@@ -1218,7 +1218,7 @@ uvc_drv_start_video(struct uvc_drv_video *video)
 	DPRINTF("streaming setting num:%u\n", num);
 	if (num <= 1) {
 		mtx_unlock(&video->mtx);
-		DPRINTF("WARTHOG: _TO_BE_IMPLEMENT_ BULK ep or bad Intf\n");
+		DPRINTF("WARNING: _TO_BE_IMPLEMENT_ BULK ep or bad Intf\n");
 		return EINVAL;
 	}
 	/* 2. loop ep */
@@ -1739,7 +1739,7 @@ uvc_drv_init_data_fmt(struct uvc_softc *sc, struct uvc_drv_data *data)
 			break;
 		/* not support */
 		default:
-			DPRINTF("WARTHOG __TO_BE_IMPLEMENT__ %s\n", __func__);
+			DPRINTF("WARNING __TO_BE_IMPLEMENT__ %s\n", __func__);
 			DPRINTF("notsupport--%u\n", desc->bDescriptorSubtype);
 			return EINVAL;
 
@@ -2083,7 +2083,7 @@ uvc_drv_parse_standard_ctrl(struct uvc_softc *sc,
 
 
 		if (vsnum > 1 || hdesc->bLength < 12 + vsnum) {
-			DPRINTF("WARTHOG: to_be_implement or bad interface.\n");
+			DPRINTF("WARNING: to_be_implement or bad interface.\n");
 			//return EINVAL;
 			if (vsnum > 1)
 				vsnum = 1;
@@ -2143,7 +2143,7 @@ uvc_drv_parse_standard_ctrl(struct uvc_softc *sc,
 		       (uint8_t *)su_desc + 5, bNrInPins);
 
 		if (su_desc->iSelector != 0) {
-			DPRINTF("WARTHOG: need to get usb string by id\n");
+			DPRINTF("WARNING: need to get usb string by id\n");
 		} else
 			snprintf(ent->name, 64, "Selector %u", ent->id);
 
@@ -2170,7 +2170,7 @@ uvc_drv_parse_standard_ctrl(struct uvc_softc *sc,
 
 		type = UGETW(it_desc->wTerminalType);
 		if (type != UVC_ITT_CAMERA) {
-			printf("WARTHOG: to_be_implement\n");
+			printf("WARNING: to_be_implement\n");
 			return EINVAL;
 		}
 
@@ -2197,11 +2197,11 @@ uvc_drv_parse_standard_ctrl(struct uvc_softc *sc,
 			memcpy((void *)ent->camera.bmControls,
 			       (uint8_t *)it_desc + 15, bCsize);
 		} else {
-			printf("WARTHOG: to_be_implement\n");
+			printf("WARNING: to_be_implement\n");
 			return EINVAL;
 		}
 		if (it_desc->bITerminal != 0) {
-			printf("WARTHOG: need to get usb string by id\n");
+			printf("WARNING: need to get usb string by id\n");
 		} else if (UVC_ENTITY_TYPE(ent) == UVC_ITT_CAMERA) {
 			snprintf(ent->name, 64, "Camera %u", ent->id);
 		} else
@@ -2233,7 +2233,7 @@ uvc_drv_parse_standard_ctrl(struct uvc_softc *sc,
 		       (uint8_t *)ot_desc + 7, 1);
 
 		if (ot_desc->bITerminal != 0) {
-			printf("WARTHOG: need to get usb string by id\n");
+			printf("WARNING: need to get usb string by id\n");
 		} else
 			snprintf(ent->name, 64, "Output %u", ent->id);
 
@@ -2266,7 +2266,7 @@ uvc_drv_parse_standard_ctrl(struct uvc_softc *sc,
 				pu_desc->bmVideoStandards;
 
 		if (pu_desc->iProcessing != 0) {
-			printf("WARTHOG: need to get usb string by id\n");
+			printf("WARNING: need to get usb string by id\n");
 		} else
 			snprintf(ent->name, 64, "Processing %u", ent->id);
 
@@ -2306,7 +2306,7 @@ uvc_drv_parse_standard_ctrl(struct uvc_softc *sc,
 		memcpy((void *)ent->extension.bmControls,
 		       (uint8_t *)eu_desc + 23 + bNrInPins, bCsize);
 		if (*(&eu_desc->iExtension + bCsize + bNrInPins) != 0)
-			printf("WARTHOG: need to get usb string by id\n");
+			printf("WARNING: need to get usb string by id\n");
 		else
 			sprintf(ent->name, "Extension %u", ent->id);
 		STAILQ_INSERT_TAIL(&ctrl->entities, ent, link);
@@ -2339,7 +2339,7 @@ uvc_drv_parse_vendor_ctrl(struct uvc_softc *sc, struct usb_descriptor *desc,
 		if (desc->bDescriptorType != 0x41 ||
 			desc->bDescriptorSubtype != 0x01)
 			break;
-		DPRINTF("WARTHOG: __TO_BE_IMPLEMENT__\n");
+		DPRINTF("WARNING: __TO_BE_IMPLEMENT__\n");
 		return 1;
 	default:
 		break;
