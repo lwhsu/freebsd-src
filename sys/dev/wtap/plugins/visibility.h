@@ -45,7 +45,12 @@ struct vis_map {
 struct visibility_plugin {
 	struct wtap_plugin	base;
 	struct mtx		pl_mtx;
+	/* static visibility map per node (bitmap mode) */
 	struct vis_map pl_node[MAX_NBR_WTAP];
+	/* per-node positions for distance-based visibility */
+	struct vispos pl_pos[MAX_NBR_WTAP];
+	/* global range threshold (0=bitmap mode; >0=distance mode) */
+	int pl_range;
 };
 
 void visibility_init(struct wtap_plugin *);

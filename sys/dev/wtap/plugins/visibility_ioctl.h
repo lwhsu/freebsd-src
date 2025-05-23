@@ -43,6 +43,20 @@ struct link {
 };
 
 #define VISIOCTLOPEN _IOW('W', 3, int) // 0 close, 1 open
-#define VISIOCTLLINK _IOW('W', 4, struct link) //
+#define VISIOCTLLINK _IOW('W', 4, struct link) /* add or remove a link: op=0 remove, op=1 add/update */
+
+/* Set node position for distance-based visibility */
+struct vispos {
+    int id;    /* node identifier */
+    int x;     /* x-coordinate (user-defined units) */
+    int y;     /* y-coordinate (user-defined units) */
+};
+#define VISIOCTLPOS _IOW('W', 5, struct vispos) /* set node position via vispos */
+
+/* Set communication range (distance threshold) for visibility */
+struct visrange {
+    int range; /* maximum distance for connectivity (same units as vispos) */
+};
+#define VISIOCTLRANGE _IOW('W', 6, struct visrange) /* set global communication range */
 
 #endif

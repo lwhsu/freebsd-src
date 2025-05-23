@@ -93,37 +93,54 @@ visibility_work(struct wtap_plugin *plugin, struct packet *p)
 	DWTAP_PRINTF("[%d] BROADCASTING m=%p\n", p->id, p->m);
 	mtx_lock(&vis_plugin->pl_mtx);
 	map = &vis_plugin->pl_node[p->id];
+	/* Distance-based visibility mode takes precedence when range>0 */
+	if (vis_plugin->pl_range > 0) {
+		int txid = p->id;
+		int range = vis_plugin->pl_range;
+		int x0 = vis_plugin->pl_pos[txid].x;
+		int y0 = vis_plugin->pl_pos[txid].y;
+		mtx_unlock(&vis_plugin->pl_mtx);
+		for (int k = 0; k < MAX_NBR_WTAP; k++) {
+			struct wtap_softc *sc = hal->hal_devs[k];
+			if (sc == NULL || sc->up == 0)
+				continue;
+			int dx = vis_plugin->pl_pos[k].x - x0;
+			int dy = vis_plugin->pl_pos[k].y - y0;
+			if ((int64_t)dx*dx + (int64_t)dy*dy <= (int64_t)range*range) {
+				struct mbuf *m = m_dup(p->m, M_NOWAIT);
+				DWTAP_PRINTF("[%d] duplicated old_m=%p to new_m=%p\n",
+					txid, p->m, m);
+				wtap_inject(sc, m);
+			}
+		}
+		return;
+	}
 	mtx_unlock(&vis_plugin->pl_mtx);
 
-	/* This is O(n*n) which is not optimal for large
-	 * number of nodes. Another way of doing it is
-	 * creating groups of nodes that hear each other.
-	 * Atleast for this simple static node plugin.
-	 */
-	for(int i=0; i<ARRAY_SIZE; ++i){
-		uint32_t index = map->map[i];
-		for(int j=0; j<32; ++j){
-			int vis = index & 0x01;
-			if(vis){
-				int k = i*ARRAY_SIZE + j;
-				if(hal->hal_devs[k] != NULL
-				    && hal->hal_devs[k]->up == 1){
-					struct wtap_softc *sc =
-					    hal->hal_devs[k];
-					struct mbuf *m =
-					    m_dup(p->m, M_NOWAIT);
-					DWTAP_PRINTF("[%d] duplicated old_m=%p"
-					    "to new_m=%p\n", p->id, p->m, m);
-#if 0
-					printf("[%d] sending to %d\n",
-					    p->id, k);
-#endif
-					wtap_inject(sc, m);
-				}
-			}
-			index = index >> 1;
-		}
-	}
+	/* Static bitmap visibility mode (legacy) */
+    /* This is O(n*n) which is not optimal for large
+     * number of nodes. Another way of doing it is
+     * creating groups of nodes that hear each other.
+     * At least for this simple static node plugin.
+     */
+    for (int i = 0; i < ARRAY_SIZE; ++i) {
+        uint32_t index = map->map[i];
+        for (int j = 0; j < 32; ++j) {
+            int vis = index & 0x01;
+            if (vis) {
+                int k = i * ARRAY_SIZE + j;
+                if (hal->hal_devs[k] != NULL
+                    && hal->hal_devs[k]->up == 1) {
+                    struct wtap_softc *sc = hal->hal_devs[k];
+                    struct mbuf *m = m_dup(p->m, M_NOWAIT);
+                    DWTAP_PRINTF("[%d] duplicated old_m=%p to new_m=%p\n",
+                        p->id, p->m, m);
+                    wtap_inject(sc, m);
+                }
+            }
+            index >>= 1;
+        }
+    }
 }
 
 static void
@@ -171,7 +188,7 @@ vis_ioctl(struct cdev *sdev, u_long cmd, caddr_t data,
 	int error = 0;
 
 	CURVNET_SET(CRED_TO_VNET(curthread->td_ucred));
-	switch(cmd) {
+	switch (cmd) {
 	case VISIOCTLOPEN:
 		op =  *(int *)data; 
 		if(op == 0)
@@ -189,6 +206,29 @@ vis_ioctl(struct cdev *sdev, u_long cmd, caddr_t data,
 		printf("op=%d, id1=%d, id2=%d\n", l.op, l.id1, l.id2);
 #endif
 		break;
+
+	case VISIOCTLPOS: {
+		struct vispos *vp = (struct vispos *)data;
+		if (vp->id < 0 || vp->id >= MAX_NBR_WTAP)
+			error = EINVAL;
+		else {
+			mtx_lock(&vis_plugin->pl_mtx);
+			vis_plugin->pl_pos[vp->id].id = vp->id;
+			vis_plugin->pl_pos[vp->id].x = vp->x;
+			vis_plugin->pl_pos[vp->id].y = vp->y;
+			mtx_unlock(&vis_plugin->pl_mtx);
+		}
+		break;
+	}
+	case VISIOCTLRANGE:
+	{
+		struct visrange *vr = (struct visrange *)data;
+		if (vr->range < 0)
+			error = EINVAL;
+		else
+			vis_plugin->pl_range = vr->range;
+		break;
+	}
 	default:
 		DWTAP_PRINTF("Unknown WTAP IOCTL\n");
 		error = EINVAL;
