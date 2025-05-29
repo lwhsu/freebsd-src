@@ -53,8 +53,17 @@ void
 visibility_init(struct wtap_plugin *plugin)
 {
 	struct visibility_plugin *vis_plugin;
+	int i, j;
 
 	vis_plugin = (struct visibility_plugin *) plugin;
+
+	// Initialize distances array
+	for (i = 0; i < MAX_NBR_WTAP; i++) {
+		for (j = 0; j < MAX_NBR_WTAP; j++) {
+			vis_plugin->distances[i][j] = -1.0f;
+		}
+	}
+
 	plugin->wp_sdev = make_dev(&vis_cdevsw,0,UID_ROOT,GID_WHEEL,0600,
 	    (const char *)"visctl");
 	plugin->wp_sdev->si_drv1 = vis_plugin;
@@ -108,6 +117,13 @@ visibility_work(struct wtap_plugin *plugin, struct packet *p)
 				int k = i*ARRAY_SIZE + j;
 				if(hal->hal_devs[k] != NULL
 				    && hal->hal_devs[k]->up == 1){
+					float distance = vis_plugin->distances[p->id][k];
+					if (distance == -1.0f) {
+						DWTAP_PRINTF("[%d -> %d] Distance: Not set\n", p->id, k);
+					} else {
+						DWTAP_PRINTF("[%d -> %d] Distance: %.2f\n", p->id, k, distance);
+					}
+
 					struct wtap_softc *sc =
 					    hal->hal_devs[k];
 					struct mbuf *m =
@@ -189,6 +205,26 @@ vis_ioctl(struct cdev *sdev, u_long cmd, caddr_t data,
 		printf("op=%d, id1=%d, id2=%d\n", l.op, l.id1, l.id2);
 #endif
 		break;
+	case VISIOCTLSETDISTANCE:
+	{
+		struct vis_distance_link dist_link_data;
+		dist_link_data = *(struct vis_distance_link *)data;
+
+		if (dist_link_data.id1 >= MAX_NBR_WTAP || dist_link_data.id2 >= MAX_NBR_WTAP) {
+			error = EINVAL;
+			break;
+		}
+		if (dist_link_data.distance < 0.0f) {
+			error = EINVAL;
+			break;
+		}
+
+		mtx_lock(&vis_plugin->pl_mtx);
+		vis_plugin->distances[dist_link_data.id1][dist_link_data.id2] = dist_link_data.distance;
+		vis_plugin->distances[dist_link_data.id2][dist_link_data.id1] = dist_link_data.distance; // for symmetry
+		mtx_unlock(&vis_plugin->pl_mtx);
+		break;
+	}
 	default:
 		DWTAP_PRINTF("Unknown WTAP IOCTL\n");
 		error = EINVAL;
