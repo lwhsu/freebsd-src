@@ -161,8 +161,8 @@ f_isset ZFSBOOT_DATASETS || ZFSBOOT_DATASETS="
 	# Ports tree
 	/usr/ports	setuid=off
 
-	# Source tree (compressed)
-	/usr/src
+	# Source tree
+	/usr/src	setuid=off
 
 	# Create /var and friends
 	/var		mountpoint=/var,canmount=off
