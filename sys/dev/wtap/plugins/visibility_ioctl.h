@@ -42,7 +42,14 @@ struct link {
       int	id2;
 };
 
+struct vis_distance_link {
+	uint16_t id1; /* ID of the first node */
+	uint16_t id2; /* ID of the second node */
+	float distance; /* The distance between id1 and id2 */
+};
+
 #define VISIOCTLOPEN _IOW('W', 3, int) // 0 close, 1 open
 #define VISIOCTLLINK _IOW('W', 4, struct link) //
+#define VISIOCTLSETDISTANCE _IOW('W', 5, struct vis_distance_link)
 
 #endif

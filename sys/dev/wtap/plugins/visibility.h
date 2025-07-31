@@ -46,6 +46,8 @@ struct visibility_plugin {
 	struct wtap_plugin	base;
 	struct mtx		pl_mtx;
 	struct vis_map pl_node[MAX_NBR_WTAP];
+	// Stores distance between nodes, -1.0f if not set
+	float distances[MAX_NBR_WTAP][MAX_NBR_WTAP];
 };
 
 void visibility_init(struct wtap_plugin *);
