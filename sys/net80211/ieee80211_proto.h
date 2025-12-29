@@ -127,6 +127,7 @@ void	ieee80211_output_seqno_assign(struct ieee80211_node *,
 		int, struct mbuf *);
 void	ieee80211_output_beacon_seqno_assign(struct ieee80211_node *,
 		struct mbuf *);
+int	ieee80211_mgmt_set_tsf(struct mbuf *, uint64_t);
 
 /*
  * The formation of ProbeResponse frames requires guidance to

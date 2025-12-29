@@ -235,7 +235,6 @@ wtap_beacon_intrp(void *arg)
 	struct wtap_vap *avp = arg;
 	struct ieee80211vap *vap = arg;
 	struct wtap_softc *sc = vap->iv_ic->ic_softc;
-	struct ieee80211_frame *wh;
 	struct mbuf *m;
 	uint64_t tsf;
 
@@ -258,8 +257,10 @@ wtap_beacon_intrp(void *arg)
 
 	/* Get TSF from HAL, and insert it into beacon frame */
 	tsf = wtap_hal_get_tsf(sc->hal);
-	wh = mtod(m, struct ieee80211_frame *);
-	memcpy(&wh[1], &tsf, sizeof(tsf));
+	if (ieee80211_mgmt_set_tsf(m, tsf) != 0) {
+		m_freem(m);
+		return;
+	}
 
 	if (ieee80211_radiotap_active_vap(vap))
 	    ieee80211_radiotap_tx(vap, m);

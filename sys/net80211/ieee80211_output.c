@@ -4304,3 +4304,30 @@ ieee80211_output_beacon_seqno_assign(struct ieee80211_node *ni, struct mbuf *m)
 		htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 	M_SEQNO_SET(m, seqno);
 }
+
+int
+ieee80211_mgmt_set_tsf(struct mbuf *m, uint64_t tsf)
+{
+	struct ieee80211_frame wh;
+	uint8_t subtype;
+	int hdrlen;
+
+	if (m->m_pkthdr.len < sizeof(wh))
+		return (EINVAL);
+
+	m_copydata(m, 0, sizeof(wh), (caddr_t)&wh);
+	if ((wh.i_fc[0] & IEEE80211_FC0_TYPE_MASK) != IEEE80211_FC0_TYPE_MGT)
+		return (EINVAL);
+	subtype = wh.i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+	if (subtype != IEEE80211_FC0_SUBTYPE_BEACON &&
+	    subtype != IEEE80211_FC0_SUBTYPE_PROBE_RESP)
+		return (EINVAL);
+
+	hdrlen = ieee80211_anyhdrsize(&wh);
+	if (m->m_pkthdr.len < hdrlen + sizeof(tsf))
+		return (EINVAL);
+
+	tsf = htole64(tsf);
+	m_copyback(m, hdrlen, sizeof(tsf), (caddr_t)&tsf);
+	return (0);
+}
