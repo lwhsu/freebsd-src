@@ -34,12 +34,21 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f-ignore-const
-.Fl u Ar file
-file
+.Ar file1
+.Ar file2
+.Nm
+.Cm abi-check
+.Fl -base Ar base
+.Fl -new Ar new
+.Fl -type Ar type
+.Op Fl -type Ar type
+.Op Fl -types-file Ar path
+.Op Fl -json
+.Op Fl -max-reasons Ar n
 .Sh DESCRIPTION
 The
 .Nm
-utility comapre the contents of the CTF (Compact C Type Format) data section
+utility compare the contents of the CTF (Compact C Type Format) data section
 (SUNW_ctf) present in two ELF binary files.
 This section was previously created with
 .Xr ctfconvert 1
@@ -49,10 +58,43 @@ or
 The following options are available:
 .Bl -tag -width indent
 .It Fl f-ignore-const
-Show the statistic output by libxo
+Ignore
+.Dv const
+qualifiers when comparing types.
+.El
+.Pp
+The
+.Cm abi-check
+subcommand compares ABI slot compatibility in a directional manner from
+BASE to NEW for the requested types.
+The following options are available:
+.Bl -tag -width indent
+.It Fl -base Ar base
+Base ELF file to compare against.
+.It Fl -new Ar new
+New ELF file to check for compatibility.
+.It Fl -type Ar type
+Type name to check (repeatable).
+For example,
+.Qq struct bio .
+.It Fl -types-file Ar path
+Read type names from a file, one per line.
+.It Fl -json
+Emit machine-readable JSON output.
+.It Fl -max-reasons Ar n
+Limit the number of breaking reasons reported per type (default 20).
 .El
 .Sh EXIT STATUS
-.Ex -std
+.Bl -tag -width indent
+.It 0
+All requested types are compatible.
+.It 1
+At least one type is incompatible.
+.It 2
+Usage or tool error (missing files, CTF parse failure, etc.).
+.It 3
+At least one type is unknown due to missing or insufficient info.
+.El
 .Sh SEE ALSO
 .Xr ctfconvert 1 ,
 .Xr ctfmerge 1 ,

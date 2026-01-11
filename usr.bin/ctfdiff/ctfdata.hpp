@@ -42,6 +42,7 @@ struct CtfData {
     private:
 	/* members */
 	CtfMetaData metadata;
+	size_t pointer_size_bytes;
 	size_t ctf_id_width;
 	ctf_header_t *header;
 	std::unordered_map<uint32_t, ShrCtfType> id_to_types;
@@ -78,6 +79,7 @@ struct CtfData {
 	{
 		return id_to_types;
 	}
+	inline size_t pointer_size() const { return pointer_size_bytes; }
 
 	static std::shared_ptr<CtfData> create_ctf_info(CtfMetaData &&metadata);
 };

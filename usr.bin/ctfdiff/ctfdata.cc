@@ -118,6 +118,7 @@ CtfData::CtfData(CtfMetaData &&metadata)
 {
 	Buffer &ctf_buffer = this->metadata.ctfdata;
 	this->header = nullptr;
+	this->pointer_size_bytes = this->metadata.pointer_size();
 
 	if (ctf_buffer.size < sizeof(ctf_preamble_t)) {
 		std::cout << metadata.file_name()

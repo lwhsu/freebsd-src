@@ -128,6 +128,15 @@ struct CtfType {
 	/* member function */
 	inline const std::string_view &name() const { return name_str; }
 	inline ShrCtfData get_owned() const { return owned_ctf; }
+	inline uint32_t type_id() const { return id; }
+	inline int kind() const
+	{
+		return parser == nullptr ? CTF_K_UNKNOWN : parser->kind();
+	}
+	inline size_t type_size() const
+	{
+		return parser == nullptr ? 0 : parser->size();
+	}
 	bool compare(const CtfType &rhs,
 	    std::unordered_map<uint64_t, bool> &cache)
 	    const; /* compare two ctftype with type cache */
@@ -212,6 +221,8 @@ struct CtfTypeArray : CtfType {
 
 	/* member function */
 	uint32_t members() const { return entry.nelems; };
+	uint32_t contents() const { return entry.contents; };
+	uint32_t index() const { return entry.index; };
 };
 
 struct CtfTypeFunc : CtfType {
@@ -358,6 +369,9 @@ struct CtfTypeComplex : CtfType {
 	    , size(size)
 	    , args(args) {};
 	virtual ~CtfTypeComplex() = default;
+
+	const std::vector<MemberEntry> &members() const { return args; };
+	uint32_t byte_size() const { return size; };
 };
 
 struct CtfTypeStruct : CtfTypeComplex {

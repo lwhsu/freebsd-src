@@ -11,6 +11,7 @@ struct CtfMetaData {
 	int data_fd;
 	std::string filename;
 	Elf *elf;
+	size_t pointer_size_bytes;
 
 	bool from_elf_file();
 	bool from_raw_file();
@@ -24,5 +25,6 @@ struct CtfMetaData {
 	~CtfMetaData();
 
 	std::string_view file_name() { return this->filename; }
+	size_t pointer_size() const { return pointer_size_bytes; }
 	bool is_available();
 };

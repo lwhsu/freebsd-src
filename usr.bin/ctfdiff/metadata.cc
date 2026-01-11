@@ -1,6 +1,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <elf.h>
 #include <fcntl.h>
 #include <gelf.h>
 #include <libelf.h>
@@ -42,6 +43,18 @@ CtfMetaData::from_elf_file()
 	if ((this->elf = elf_begin(this->data_fd, ELF_C_READ, NULL)) == NULL ||
 	    gelf_getehdr(elf, &ehdr) == NULL) {
 		return (false);
+	}
+
+	switch (ehdr.e_ident[EI_CLASS]) {
+	case ELFCLASS32:
+		this->pointer_size_bytes = 4;
+		break;
+	case ELFCLASS64:
+		this->pointer_size_bytes = 8;
+		break;
+	default:
+		this->pointer_size_bytes = 0;
+		break;
 	}
 
 	Elf_Scn *ctfscn = find_section_by_name(this->elf, &ehdr, ctfscn_name);
@@ -117,6 +130,7 @@ CtfMetaData::from_raw_file()
 
 CtfMetaData::CtfMetaData(const std::string &filename)
     : filename(filename)
+    , pointer_size_bytes(0)
 {
 	this->data_fd = open(filename.c_str(), O_RDONLY);
 	this->elf = nullptr;

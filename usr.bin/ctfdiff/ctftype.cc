@@ -62,11 +62,9 @@ CtfTypeParser_V2::increment() const
 size_t
 CtfTypeParser_V2::size() const
 {
-	if (t.ctt_size == CTF_V2_LSIZE_SENT) {
-		return (sizeof(ctf_type_v2));
-	} else {
-		return (sizeof(ctf_stype_v2));
-	}
+	if (t.ctt_size == CTF_V2_LSIZE_SENT)
+		return (CTF_TYPE_LSIZE(&t));
+	return (t.ctt_size);
 }
 
 ArrayEntry
@@ -153,11 +151,9 @@ CtfTypeParser_V3::increment() const
 size_t
 CtfTypeParser_V3::size() const
 {
-	if (t.ctt_size == CTF_V3_LSIZE_SENT) {
-		return (sizeof(ctf_type_v3));
-	} else {
-		return (sizeof(ctf_stype_v3));
-	}
+	if (t.ctt_size == CTF_V3_LSIZE_SENT)
+		return (CTF_TYPE_LSIZE(&t));
+	return (t.ctt_size);
 }
 
 ArrayEntry

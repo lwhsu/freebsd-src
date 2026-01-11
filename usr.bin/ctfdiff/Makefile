@@ -5,6 +5,7 @@
 PACKAGE=	ctf-tools
 PROG_CXX=	ctfdiff
 SRCS=		ctfdiff.cc \
+		abi.cc \
 		ctfdata.cc \
 		ctftype.cc  \
 		metadata.cc\
@@ -29,5 +30,16 @@ CXXFLAGS+= -std=c++17
 CFLAGS+= -DHAVE_ISSETUGID
 
 LIBADD=		elf z
+
+abi-check-test: all
+	@OBJDIR=`${MAKE} -V .OBJDIR`; \
+	CTFDIFF="$$OBJDIR/ctfdiff"; \
+	TMPDIR="${.CURDIR}/../../tmp"; \
+	/bin/sh ${.CURDIR}/tests/abi-check.sh "$$CTFDIFF" "$$TMPDIR"
+
+abi-scenarios-test: all
+	@OBJDIR=`${MAKE} -V .OBJDIR`; \
+	CTFDIFF="$$OBJDIR/ctfdiff"; \
+	/bin/sh ${.CURDIR}/tests/abi-scenarios.sh "$$CTFDIFF"
 
 .include <bsd.prog.mk>
