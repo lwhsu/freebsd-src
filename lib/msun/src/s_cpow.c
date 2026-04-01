@@ -14,62 +14,38 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*							cpow
+/*
+ * Complex power function.
  *
- *	Complex power function
- *
- *
- *
- * SYNOPSIS:
- *
- * double complex cpow();
- * double complex a, z, w;
- *
- * w = cpow (a, z);
- *
- *
- *
- * DESCRIPTION:
- *
- * Raises complex A to the complex Zth power.
- * Definition is per AMS55 # 4.2.8,
- * analytically equivalent to cpow(a,z) = cexp(z clog(a)).
- *
- * ACCURACY:
- *
- *                      Relative error:
- * arithmetic   domain     # trials      peak         rms
- *    IEEE      -10,+10     30000       9.4e-15     1.5e-15
- *
+ * Uses the formula cpow(a, z) = cexp(z * clog(a)) per C99 G.6.4.1,
+ * leveraging the high-precision clog() and cexp() implementations.
  */
 
 #include <complex.h>
-#include <float.h>
 #include <math.h>
 #include "math_private.h"
 
 double complex
 cpow(double complex a, double complex z)
 {
-	double complex w;
-	double x, y, r, theta, absa, arga;
+	double x, y, re_a, im_a;
 
-	x = creal (z);
-	y = cimag (z);
-	absa = cabs (a);
-	if (absa == 0.0) {
-		if (x == 0 && y == 0)
-		    return (CMPLX(1., 0.));
-		else
-		    return (CMPLX(0., 0.));
+	x = creal(z);
+	y = cimag(z);
+	re_a = creal(a);
+	im_a = cimag(a);
+
+	/* Handle zero base. */
+	if (re_a == 0.0 && im_a == 0.0) {
+		if (x == 0.0 && y == 0.0)
+			return (CMPLX(1.0, 0.0));
+		return (CMPLX(0.0, 0.0));
 	}
-	arga = carg (a);
-	r = pow (absa, x);
-	theta = x * arga;
-	if (y != 0.0) {
-		r = r * exp (-y * arga);
-		theta = theta + y * log (absa);
-	}
-	w = CMPLX(r * cos (theta),  r * sin (theta));
-	return (w);
+
+	/* Optimize: positive real base with real exponent. */
+	if (im_a == 0.0 && re_a > 0.0 && y == 0.0)
+		return (CMPLX(pow(re_a, x), 0.0));
+
+	/* General case per C99 G.6.4.1: cexp(z * clog(a)). */
+	return (cexp(z * clog(a)));
 }

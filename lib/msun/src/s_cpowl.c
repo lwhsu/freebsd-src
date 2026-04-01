@@ -14,61 +14,43 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*							cpowl
+/*
+ * Complex power function, long double precision.
  *
- *	Complex power function
- *
- *
- *
- * SYNOPSIS:
- *
- * long double complex cpowl();
- * long double complex a, z, w;
- *
- * w = cpowl (a, z);
- *
- *
- *
- * DESCRIPTION:
- *
- * Raises complex A to the complex Zth power.
- * Definition is per AMS55 # 4.2.8,
- * analytically equivalent to cpow(a,z) = cexp(z clog(a)).
- *
- * ACCURACY:
- *
- *                      Relative error:
- * arithmetic   domain     # trials      peak         rms
- *    IEEE      -10,+10     30000       9.4e-15     1.5e-15
- *
+ * Uses the formula cpowl(a, z) = cexpl(z * clogl(a)) per C99 G.6.4.1,
+ * leveraging the high-precision clogl() and cexpl() implementations.
  */
 
 #include <complex.h>
+#include <float.h>
 #include <math.h>
 #include "math_private.h"
 
 long double complex
 cpowl(long double complex a, long double complex z)
 {
-	long double complex w;
-	long double x, y, r, theta, absa, arga;
+	long double x, y, re_a, im_a;
 
 	x = creall(z);
 	y = cimagl(z);
-	absa = cabsl(a);
-	if (absa == 0.0L) {
-		if (x == 0 && y == 0)
-		    return (CMPLXL(1.L, 0.L));
-		else
-		    return (CMPLXL(0.L, 0.L));
+	re_a = creall(a);
+	im_a = cimagl(a);
+
+	/* Handle zero base. */
+	if (re_a == 0.0L && im_a == 0.0L) {
+		if (x == 0.0L && y == 0.0L)
+			return (CMPLXL(1.0L, 0.0L));
+		return (CMPLXL(0.0L, 0.0L));
 	}
-	arga = cargl(a);
-	r = powl(absa, x);
-	theta = x * arga;
-	if (y != 0.0L) {
-		r = r * expl(-y * arga);
-		theta = theta + y * logl(absa);
-	}
-	w = CMPLXL(r * cosl(theta), r * sinl(theta));
-	return (w);
+
+	/* Optimize: positive real base with real exponent. */
+	if (im_a == 0.0L && re_a > 0.0L && y == 0.0L)
+		return (CMPLXL(powl(re_a, x), 0.0L));
+
+	/* General case per C99 G.6.4.1: cexpl(z * clogl(a)). */
+	return (cexpl(z * clogl(a)));
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(cpow, cpowl);
+#endif

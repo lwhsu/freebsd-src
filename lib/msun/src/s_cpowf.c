@@ -14,33 +14,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/*							cpowf
+/*
+ * Complex power function, float precision.
  *
- *	Complex power function
- *
- *
- *
- * SYNOPSIS:
- *
- * float complex cpowf();
- * float complex a, z, w;
- *
- * w = cpowf (a, z);
- *
- *
- *
- * DESCRIPTION:
- *
- * Raises complex A to the complex Zth power.
- * Definition is per AMS55 # 4.2.8,
- * analytically equivalent to cpow(a,z) = cexp(z clog(a)).
- *
- * ACCURACY:
- *
- *                      Relative error:
- * arithmetic   domain     # trials      peak         rms
- *    IEEE      -10,+10     30000       9.4e-15     1.5e-15
- *
+ * Uses the formula cpowf(a, z) = cexpf(z * clogf(a)) per C99 G.6.4.1,
+ * leveraging the high-precision clogf() and cexpf() implementations.
  */
 
 #include <complex.h>
@@ -50,25 +28,24 @@
 float complex
 cpowf(float complex a, float complex z)
 {
-	float complex w;
-	float x, y, r, theta, absa, arga;
+	float x, y, re_a, im_a;
 
 	x = crealf(z);
 	y = cimagf(z);
-	absa = cabsf (a);
-	if (absa == 0.0f) {
-		if (x == 0 && y == 0)
-		    return (CMPLXF(1.f, 0.f));
-		else
-		    return (CMPLXF(0.f, 0.f));
+	re_a = crealf(a);
+	im_a = cimagf(a);
+
+	/* Handle zero base. */
+	if (re_a == 0.0f && im_a == 0.0f) {
+		if (x == 0.0f && y == 0.0f)
+			return (CMPLXF(1.0f, 0.0f));
+		return (CMPLXF(0.0f, 0.0f));
 	}
-	arga = cargf (a);
-	r = powf (absa, x);
-	theta = x * arga;
-	if (y != 0.0f) {
-		r = r * expf (-y * arga);
-		theta = theta + y * logf (absa);
-	}
-	w = CMPLXF(r * cosf (theta), r * sinf (theta));
-	return (w);
+
+	/* Optimize: positive real base with real exponent. */
+	if (im_a == 0.0f && re_a > 0.0f && y == 0.0f)
+		return (CMPLXF(powf(re_a, x), 0.0f));
+
+	/* General case per C99 G.6.4.1: cexpf(z * clogf(a)). */
+	return (cexpf(z * clogf(a)));
 }

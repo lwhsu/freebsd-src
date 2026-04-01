@@ -52,6 +52,7 @@ NETBSD_ATF_TESTS_C+=	tanh_test
 
 ATF_TESTS_C+=	cexp_test
 ATF_TESTS_C+=	conj_test
+ATF_TESTS_C+=	cpow_test
 ATF_TESTS_C+=	csqrt_test
 ATF_TESTS_C+=	ctrig_test
 ATF_TESTS_C+=	exponential_test
