@@ -181,10 +181,10 @@ cfpequal(long double complex d1, long double complex d2)
 } while (0)
 
 #define _cfpequal_tol(atf_variant, x, y, tol, flags) do {			\
-	long double _x = x;							\
-	long double _y = y;							\
-	bool equal_tol = (fpequal_tol(creal(_x), creal(_y), tol, flags) &&	\
-	    fpequal_tol(cimag(_x), cimag(_y), tol, flags));			\
+	long double complex _x = (x);						\
+	long double complex _y = (y);						\
+	bool equal_tol = (fpequal_tol(creall(_x), creall(_y), tol, flags) &&	\
+	    fpequal_tol(cimagl(_x), cimagl(_y), tol, flags));			\
 	ATF_##atf_variant##_MSG(equal_tol,					\
 	    "%s (%Lg + %Lg I) ~=  %s (%Lg + %Lg I)",				\
 	    #x, creall(_x), cimagl(_x), #y, creall(_y), cimagl(_y));		\
