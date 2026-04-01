@@ -42,21 +42,6 @@
 #pragma	STDC CX_LIMITED_RANGE	OFF
 
 /*
- * Tolerance-based check for complex results, checking real and imaginary
- * parts independently.  This avoids a pre-existing issue in _cfpequal_tol
- * where complex values are truncated to long double (losing the imaginary
- * part).
- */
-#define	check_cpow_tol(result, expected, tol) do {			\
-	volatile long double complex _r = (result);			\
-	volatile long double complex _e = (expected);			\
-	CHECK_FPEQUAL_TOL(creall(_r), creall(_e), (tol),		\
-	    FPE_ABS_ZERO);						\
-	CHECK_FPEQUAL_TOL(cimagl(_r), cimagl(_e), (tol),		\
-	    FPE_ABS_ZERO);						\
-} while (0)
-
-/*
  * Test hooks for different precisions.
  */
 static long double complex
@@ -103,28 +88,28 @@ ATF_TC_BODY(real_base_real_exp, tc)
 {
 
 	/* 2^3 = 8 */
-	check_cpow_tol(_cpow(CMPLXL(2.0, 0.0), CMPLXL(3.0, 0.0)),
-	    CMPLXL(8.0, 0.0), 3 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(2.0, 0.0), CMPLXL(3.0, 0.0)),
-	    CMPLXL(8.0, 0.0), 3 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(2.0, 0.0), CMPLXL(3.0, 0.0)),
+	    CMPLXL(8.0, 0.0), 3 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(2.0, 0.0), CMPLXL(3.0, 0.0)),
+	    CMPLXL(8.0, 0.0), 3 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/* 4^0.5 = 2 */
-	check_cpow_tol(_cpow(CMPLXL(4.0, 0.0), CMPLXL(0.5, 0.0)),
-	    CMPLXL(2.0, 0.0), 3 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(4.0, 0.0), CMPLXL(0.5, 0.0)),
-	    CMPLXL(2.0, 0.0), 3 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(4.0, 0.0), CMPLXL(0.5, 0.0)),
+	    CMPLXL(2.0, 0.0), 3 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(4.0, 0.0), CMPLXL(0.5, 0.0)),
+	    CMPLXL(2.0, 0.0), 3 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/* 10^2 = 100 */
-	check_cpow_tol(_cpow(CMPLXL(10.0, 0.0), CMPLXL(2.0, 0.0)),
-	    CMPLXL(100.0, 0.0), 3 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(10.0, 0.0), CMPLXL(2.0, 0.0)),
-	    CMPLXL(100.0, 0.0), 3 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(10.0, 0.0), CMPLXL(2.0, 0.0)),
+	    CMPLXL(100.0, 0.0), 3 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(10.0, 0.0), CMPLXL(2.0, 0.0)),
+	    CMPLXL(100.0, 0.0), 3 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/* 2^10 = 1024 */
-	check_cpow_tol(_cpow(CMPLXL(2.0, 0.0), CMPLXL(10.0, 0.0)),
-	    CMPLXL(1024.0, 0.0), 3 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(2.0, 0.0), CMPLXL(10.0, 0.0)),
-	    CMPLXL(1024.0, 0.0), 3 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(2.0, 0.0), CMPLXL(10.0, 0.0)),
+	    CMPLXL(1024.0, 0.0), 3 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(2.0, 0.0), CMPLXL(10.0, 0.0)),
+	    CMPLXL(1024.0, 0.0), 3 * FLT_ULP(), FPE_ABS_ZERO);
 }
 
 /* Integer powers of complex numbers with known results. */
@@ -133,34 +118,34 @@ ATF_TC_BODY(integer_powers, tc)
 {
 
 	/* (1+i)^2 = 2i */
-	check_cpow_tol(_cpow(CMPLXL(1.0, 1.0), CMPLXL(2.0, 0.0)),
-	    CMPLXL(0.0, 2.0), 3 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(1.0, 1.0), CMPLXL(2.0, 0.0)),
-	    CMPLXL(0.0, 2.0), 3 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(1.0, 1.0), CMPLXL(2.0, 0.0)),
+	    CMPLXL(0.0, 2.0), 3 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(1.0, 1.0), CMPLXL(2.0, 0.0)),
+	    CMPLXL(0.0, 2.0), 3 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/* (1+i)^4 = -4 */
-	check_cpow_tol(_cpow(CMPLXL(1.0, 1.0), CMPLXL(4.0, 0.0)),
-	    CMPLXL(-4.0, 0.0), 5 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(1.0, 1.0), CMPLXL(4.0, 0.0)),
-	    CMPLXL(-4.0, 0.0), 5 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(1.0, 1.0), CMPLXL(4.0, 0.0)),
+	    CMPLXL(-4.0, 0.0), 5 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(1.0, 1.0), CMPLXL(4.0, 0.0)),
+	    CMPLXL(-4.0, 0.0), 5 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/* i^2 = -1 */
-	check_cpow_tol(_cpow(CMPLXL(0.0, 1.0), CMPLXL(2.0, 0.0)),
-	    CMPLXL(-1.0, 0.0), 3 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(0.0, 1.0), CMPLXL(2.0, 0.0)),
-	    CMPLXL(-1.0, 0.0), 3 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(0.0, 1.0), CMPLXL(2.0, 0.0)),
+	    CMPLXL(-1.0, 0.0), 3 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(0.0, 1.0), CMPLXL(2.0, 0.0)),
+	    CMPLXL(-1.0, 0.0), 3 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/* i^4 = 1 */
-	check_cpow_tol(_cpow(CMPLXL(0.0, 1.0), CMPLXL(4.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 5 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(0.0, 1.0), CMPLXL(4.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 5 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(0.0, 1.0), CMPLXL(4.0, 0.0)),
+	    CMPLXL(1.0, 0.0), 5 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(0.0, 1.0), CMPLXL(4.0, 0.0)),
+	    CMPLXL(1.0, 0.0), 5 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/* (-1)^2 = 1 */
-	check_cpow_tol(_cpow(CMPLXL(-1.0, 0.0), CMPLXL(2.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 3 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(-1.0, 0.0), CMPLXL(2.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 3 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(-1.0, 0.0), CMPLXL(2.0, 0.0)),
+	    CMPLXL(1.0, 0.0), 3 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(-1.0, 0.0), CMPLXL(2.0, 0.0)),
+	    CMPLXL(1.0, 0.0), 3 * FLT_ULP(), FPE_ABS_ZERO);
 }
 
 /*
@@ -175,34 +160,34 @@ ATF_TC_BODY(precision_near_one, tc)
 	 * e^(i*pi/4) raised to the 8th power = e^(i*2*pi) = 1.
 	 * a = cos(pi/4) + i*sin(pi/4) = (sqrt(2)/2, sqrt(2)/2), |a| = 1.
 	 */
-	check_cpow_tol(_cpow(
+	CHECK_CFPEQUAL_TOL(_cpow(
 	    CMPLXL(M_SQRT2 / 2.0, M_SQRT2 / 2.0), CMPLXL(8.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 5 * DBL_ULP());
-	check_cpow_tol(_cpowf(
+	    CMPLXL(1.0, 0.0), 5 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(
 	    CMPLXL(M_SQRT2 / 2.0, M_SQRT2 / 2.0), CMPLXL(8.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 5 * FLT_ULP());
+	    CMPLXL(1.0, 0.0), 5 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/*
 	 * e^(i*pi/3) raised to the 6th power = e^(i*2*pi) = 1.
 	 * a = (0.5, sqrt(3)/2), |a| = 1.
 	 */
-	check_cpow_tol(_cpow(
+	CHECK_CFPEQUAL_TOL(_cpow(
 	    CMPLXL(0.5, sqrtl(3.0L) / 2.0L), CMPLXL(6.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 5 * DBL_ULP());
-	check_cpow_tol(_cpowf(
+	    CMPLXL(1.0, 0.0), 5 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(
 	    CMPLXL(0.5, sqrtl(3.0L) / 2.0L), CMPLXL(6.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 5 * FLT_ULP());
+	    CMPLXL(1.0, 0.0), 5 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/*
 	 * e^(i*pi/6) raised to the 12th power = e^(i*2*pi) = 1.
 	 * a = (sqrt(3)/2, 0.5), |a| = 1.
 	 */
-	check_cpow_tol(_cpow(
+	CHECK_CFPEQUAL_TOL(_cpow(
 	    CMPLXL(sqrtl(3.0L) / 2.0L, 0.5), CMPLXL(12.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 10 * DBL_ULP());
-	check_cpow_tol(_cpowf(
+	    CMPLXL(1.0, 0.0), 10 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(
 	    CMPLXL(sqrtl(3.0L) / 2.0L, 0.5), CMPLXL(12.0, 0.0)),
-	    CMPLXL(1.0, 0.0), 10 * FLT_ULP());
+	    CMPLXL(1.0, 0.0), 10 * FLT_ULP(), FPE_ABS_ZERO);
 }
 
 /* Complex exponents: i^i = e^(-pi/2). */
@@ -214,16 +199,16 @@ ATF_TC_BODY(complex_exponent, tc)
 	/* i^i = e^(i * log(i)) = e^(i * i*pi/2) = e^(-pi/2) */
 	expected_re = expl(-M_PI / 2.0L);
 
-	check_cpow_tol(_cpow(CMPLXL(0.0, 1.0), CMPLXL(0.0, 1.0)),
-	    CMPLXL(expected_re, 0.0), 3 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(0.0, 1.0), CMPLXL(0.0, 1.0)),
-	    CMPLXL(expected_re, 0.0), 3 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(0.0, 1.0), CMPLXL(0.0, 1.0)),
+	    CMPLXL(expected_re, 0.0), 3 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(0.0, 1.0), CMPLXL(0.0, 1.0)),
+	    CMPLXL(expected_re, 0.0), 3 * FLT_ULP(), FPE_ABS_ZERO);
 
 	/* 2^i = e^(i*ln2) = cos(ln2) + i*sin(ln2) */
-	check_cpow_tol(_cpow(CMPLXL(2.0, 0.0), CMPLXL(0.0, 1.0)),
-	    CMPLXL(cosl(M_LN2), sinl(M_LN2)), 3 * DBL_ULP());
-	check_cpow_tol(_cpowf(CMPLXL(2.0, 0.0), CMPLXL(0.0, 1.0)),
-	    CMPLXL(cosl(M_LN2), sinl(M_LN2)), 3 * FLT_ULP());
+	CHECK_CFPEQUAL_TOL(_cpow(CMPLXL(2.0, 0.0), CMPLXL(0.0, 1.0)),
+	    CMPLXL(cosl(M_LN2), sinl(M_LN2)), 3 * DBL_ULP(), FPE_ABS_ZERO);
+	CHECK_CFPEQUAL_TOL(_cpowf(CMPLXL(2.0, 0.0), CMPLXL(0.0, 1.0)),
+	    CMPLXL(cosl(M_LN2), sinl(M_LN2)), 3 * FLT_ULP(), FPE_ABS_ZERO);
 }
 
 /* Long double precision tests. */
@@ -232,27 +217,27 @@ ATF_TC_BODY(cpowl_precision, tc)
 {
 
 	/* (1+i)^2 = 2i */
-	check_cpow_tol(cpowl(CMPLXL(1.0L, 1.0L), CMPLXL(2.0L, 0.0L)),
-	    CMPLXL(0.0L, 2.0L), 3 * LDBL_ULP());
+	CHECK_CFPEQUAL_TOL(cpowl(CMPLXL(1.0L, 1.0L), CMPLXL(2.0L, 0.0L)),
+	    CMPLXL(0.0L, 2.0L), 3 * LDBL_ULP(), FPE_ABS_ZERO);
 
 	/* e^(i*pi/4) to the 8th = 1 */
-	check_cpow_tol(
+	CHECK_CFPEQUAL_TOL(
 	    cpowl(CMPLXL(sqrtl(2.0L) / 2.0L, sqrtl(2.0L) / 2.0L),
 		CMPLXL(8.0L, 0.0L)),
-	    CMPLXL(1.0L, 0.0L), 5 * LDBL_ULP());
+	    CMPLXL(1.0L, 0.0L), 5 * LDBL_ULP(), FPE_ABS_ZERO);
 
 	/*
 	 * i^i = e^(-pi/2).  The compound operation (cexpl of clogl)
 	 * accumulates some error, so we allow a wider tolerance here.
 	 */
-	check_cpow_tol(
+	CHECK_CFPEQUAL_TOL(
 	    cpowl(CMPLXL(0.0L, 1.0L), CMPLXL(0.0L, 1.0L)),
-	    CMPLXL(expl(-M_PI / 2.0L), 0.0L), 600 * LDBL_ULP());
+	    CMPLXL(expl(-M_PI / 2.0L), 0.0L), 600 * LDBL_ULP(), FPE_ABS_ZERO);
 
 	/* 2^10 = 1024 */
-	check_cpow_tol(
+	CHECK_CFPEQUAL_TOL(
 	    cpowl(CMPLXL(2.0L, 0.0L), CMPLXL(10.0L, 0.0L)),
-	    CMPLXL(1024.0L, 0.0L), 3 * LDBL_ULP());
+	    CMPLXL(1024.0L, 0.0L), 3 * LDBL_ULP(), FPE_ABS_ZERO);
 }
 
 ATF_TP_ADD_TCS(tp)
