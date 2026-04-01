@@ -67,6 +67,7 @@ ATF_TESTS_C+=	lrint_test
 ATF_TESTS_C+=	lround_test
 ATF_TESTS_C+=	nan_test
 ATF_TESTS_C+=	nearbyint_test
+ATF_TESTS_C+=	powl_test
 ATF_TESTS_C+=	next_test
 ATF_TESTS_C+=	rem_test
 ATF_TESTS_C+=	trig_test
