@@ -350,6 +350,7 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		switch (vap->iv_opmode) {
 		case IEEE80211_M_IBSS:
 		case IEEE80211_M_MBSS:
+		case IEEE80211_M_HOSTAP:
 			/*
 			 * Stop any previous beacon callout. This may be
 			 * necessary, for example, when an ibss merge
@@ -381,6 +382,9 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			wtap_hal_reset_tsf(sc->hal);
 			callout_reset(&avp->av_swba, avp->av_bcinterval,
 			    wtap_beacon_intrp, vap);
+			break;
+		case IEEE80211_M_STA:
+			/* STA has associated; no beacon or TSF setup needed. */
 			break;
 		case IEEE80211_M_MONITOR:
 			/* Monitor mode requires no beacon or TSF setup. */
@@ -668,6 +672,19 @@ wtap_transmit(struct ieee80211com *ic, struct mbuf *m)
 	}
 	vap = ni->ni_vap;
 	avp = WTAP_VAP(vap);
+
+	/*
+	 * If the frame is marked as protected, encrypt it before
+	 * handing it off to the medium.
+	 */
+	if (IEEE80211_IS_PROTECTED(mtod(m, struct ieee80211_frame *))) {
+		if (ieee80211_crypto_encap(ni, m) == NULL) {
+			ieee80211_free_node(ni);
+			m_freem(m);
+			return (ENOBUFS);
+		}
+	}
+
 	if (ieee80211_radiotap_active_vap(vap)) {
 		wtap_tx_tap(sc);
 		ieee80211_radiotap_tx(vap, m);
@@ -721,8 +738,19 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	ic->ic_name = sc->name;
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_MBSS;
-	ic->ic_caps = IEEE80211_C_MBSS | IEEE80211_C_IBSS |
-	    IEEE80211_C_STA | IEEE80211_C_HOSTAP | IEEE80211_C_MONITOR;
+	ic->ic_caps =
+	    IEEE80211_C_MBSS		/* mesh point link mode */
+	    | IEEE80211_C_IBSS		/* ibss, nee adhoc, mode */
+	    | IEEE80211_C_STA		/* station mode */
+	    | IEEE80211_C_HOSTAP	/* hostap mode */
+	    | IEEE80211_C_MONITOR	/* monitor mode */
+	    | IEEE80211_C_WPA;		/* WPA1+WPA2 */
+
+	ic->ic_cryptocaps =
+	    IEEE80211_CRYPTO_WEP
+	    | IEEE80211_CRYPTO_AES_CCM
+	    | IEEE80211_CRYPTO_TKIP
+	    | IEEE80211_CRYPTO_TKIPMIC;
 
 	ic->ic_max_keyix = 128; /* A value read from Atheros ATH_KEYMAX */
 
