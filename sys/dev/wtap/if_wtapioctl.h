@@ -138,42 +138,41 @@ struct wtap_stats {
 
 /*
  * Radio capture format.
+ *
+ * XCHANNEL fields: chan_flags(u32) + chan_freq(u16) + chan_ieee(u8) + maxpow(s8)
+ * require 4-byte alignment from the start of the radiotap header.
+ * No per-packet rate is available in wtap, so RATE is omitted.
  */
-#define WTAP_RX_RADIOTAP_PRESENT (		\
+#define WTAP_RX_RADIOTAP_PRESENT (				\
+	(1 << IEEE80211_RADIOTAP_TSFT)		|		\
+	(1 << IEEE80211_RADIOTAP_FLAGS)		|		\
+	(1 << IEEE80211_RADIOTAP_XCHANNEL)	|		\
 	0)
 
 struct wtap_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
-#if 0
-	u_int64_t	wr_tsf;
-	u_int8_t	wr_flags;
-	u_int8_t	wr_rate;
-	int8_t		wr_antsignal;
-	int8_t		wr_antnoise;
-	u_int8_t	wr_antenna;
-	u_int8_t	wr_pad[3];
-	u_int32_t	wr_chan_flags;
-	u_int16_t	wr_chan_freq;
-	u_int8_t	wr_chan_ieee;
-	int8_t		wr_chan_maxpow;
-#endif
+	u_int64_t	wr_tsf;		/* offset  8: TSFT */
+	u_int8_t	wr_flags;	/* offset 16: FLAGS */
+	u_int8_t	wr_pad[3];	/* offset 17: pad to align XCHANNEL */
+	u_int32_t	wr_chan_flags;	/* offset 20: XCHANNEL flags */
+	u_int16_t	wr_chan_freq;	/* offset 24: XCHANNEL freq (MHz) */
+	u_int8_t	wr_chan_ieee;	/* offset 26: XCHANNEL ieee number */
+	int8_t		wr_chan_maxpow;	/* offset 27: XCHANNEL max tx power */
 } __packed __aligned(8);
 
-#define WTAP_TX_RADIOTAP_PRESENT (		\
+#define WTAP_TX_RADIOTAP_PRESENT (				\
+	(1 << IEEE80211_RADIOTAP_FLAGS)		|		\
+	(1 << IEEE80211_RADIOTAP_XCHANNEL)	|		\
 	0)
 
 struct wtap_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
-#if 0
-	u_int8_t	wt_flags;
-	u_int8_t	wt_rate;
-	u_int8_t	wt_txpower;
-	u_int8_t	wt_antenna;
-	u_int32_t	wt_chan_flags;
-	u_int16_t	wt_chan_freq;
-	u_int8_t	wt_chan_ieee;
-	int8_t		wt_chan_maxpow;
-#endif
-} __packed;
+	u_int8_t	wt_flags;	/* offset  8: FLAGS */
+	u_int8_t	wt_pad[3];	/* offset  9: pad to align XCHANNEL */
+	u_int32_t	wt_chan_flags;	/* offset 12: XCHANNEL flags */
+	u_int16_t	wt_chan_freq;	/* offset 16: XCHANNEL freq (MHz) */
+	u_int8_t	wt_chan_ieee;	/* offset 18: XCHANNEL ieee number */
+	int8_t		wt_chan_maxpow;	/* offset 19: XCHANNEL max tx power */
+} __packed __aligned(8);
 
 #endif

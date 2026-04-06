@@ -229,6 +229,57 @@ wtap_beacon_config(struct wtap_softc *sc, struct ieee80211vap *vap)
 	DWTAP_PRINTF("%s\n", __func__);
 }
 
+/*
+ * Fill the RX radiotap header with current channel metadata.
+ * Does not touch wr_ihdr (managed by ieee80211_radiotap_attach).
+ * Safe to call with ic_curchan == NULL.
+ */
+static void
+wtap_rx_tap(struct wtap_softc *sc, uint64_t tsf)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct wtap_rx_radiotap_header *rh = &sc->sc_rx_th;
+
+	rh->wr_tsf = htole64(tsf);
+	rh->wr_flags = 0;
+	memset(rh->wr_pad, 0, sizeof(rh->wr_pad));
+	if (ic->ic_curchan != NULL) {
+		rh->wr_chan_flags = htole32(ic->ic_curchan->ic_flags);
+		rh->wr_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		rh->wr_chan_ieee = ic->ic_curchan->ic_ieee;
+	} else {
+		rh->wr_chan_flags = 0;
+		rh->wr_chan_freq = 0;
+		rh->wr_chan_ieee = 0;
+	}
+	rh->wr_chan_maxpow = 0;
+}
+
+/*
+ * Fill the TX radiotap header with current channel metadata.
+ * Does not touch wt_ihdr (managed by ieee80211_radiotap_attach).
+ * Safe to call with ic_curchan == NULL.
+ */
+static void
+wtap_tx_tap(struct wtap_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct wtap_tx_radiotap_header *th = &sc->sc_tx_th;
+
+	th->wt_flags = 0;
+	memset(th->wt_pad, 0, sizeof(th->wt_pad));
+	if (ic->ic_curchan != NULL) {
+		th->wt_chan_flags = htole32(ic->ic_curchan->ic_flags);
+		th->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
+		th->wt_chan_ieee = ic->ic_curchan->ic_ieee;
+	} else {
+		th->wt_chan_flags = 0;
+		th->wt_chan_freq = 0;
+		th->wt_chan_ieee = 0;
+	}
+	th->wt_chan_maxpow = 0;
+}
+
 static void
 wtap_beacon_intrp(void *arg)
 {
@@ -261,8 +312,10 @@ wtap_beacon_intrp(void *arg)
 	wh = mtod(m, struct ieee80211_frame *);
 	memcpy(&wh[1], &tsf, sizeof(tsf));
 
-	if (ieee80211_radiotap_active_vap(vap))
-	    ieee80211_radiotap_tx(vap, m);
+	if (ieee80211_radiotap_active_vap(vap)) {
+		wtap_tx_tap(sc);
+		ieee80211_radiotap_tx(vap, m);
+	}
 
 #if 0
 	medium_transmit(avp->av_md, avp->id, m);
@@ -328,6 +381,9 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			wtap_hal_reset_tsf(sc->hal);
 			callout_reset(&avp->av_swba, avp->av_bcinterval,
 			    wtap_beacon_intrp, vap);
+			break;
+		case IEEE80211_M_MONITOR:
+			/* Monitor mode requires no beacon or TSF setup. */
 			break;
 		default:
 			goto bad;
@@ -461,16 +517,18 @@ wtap_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 #if 0
 	DWTAP_PRINTF("%s, %p\n", __func__, m);
 #endif
-	struct ieee80211vap	*vap = ni->ni_vap;
-	struct wtap_vap 	*avp = WTAP_VAP(vap);
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct wtap_vap *avp = WTAP_VAP(vap);
+	struct wtap_softc *sc = vap->iv_ic->ic_softc;
 
 	if (ieee80211_radiotap_active_vap(vap)) {
+		wtap_tx_tap(sc);
 		ieee80211_radiotap_tx(vap, m);
 	}
 	if (m->m_flags & M_TXCB)
 		ieee80211_process_callback(ni, m, 0);
 	ieee80211_free_node(ni);
-	return wtap_medium_enqueue(avp, m);
+	return (wtap_medium_enqueue(avp, m));
 }
 
 void
@@ -527,6 +585,17 @@ wtap_rx_proc(void *arg, int npending)
 #if 0
 		ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
 #endif
+		/*
+		 * Fill the RX radiotap header before passing the frame
+		 * to net80211; the input path will emit it to any BPF
+		 * or monitor-mode listeners.  Also trigger when monitor
+		 * taps are active (ic_montaps != 0) even if the ic-level
+		 * BPF flag is not set.
+		 */
+		if (ieee80211_radiotap_active(ic) || ic->ic_montaps != 0) {
+			uint64_t tsf = wtap_hal_get_tsf(sc->hal);
+			wtap_rx_tap(sc, tsf);
+		}
 
 		/*
 		 * Locate the node for sender, track state, and then
@@ -588,19 +657,25 @@ wtap_transmit(struct ieee80211com *ic, struct mbuf *m)
 {
 	struct ieee80211_node *ni =
 	    (struct ieee80211_node *) m->m_pkthdr.rcvif;
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct wtap_vap *avp = WTAP_VAP(vap);
+	struct ieee80211vap *vap;
+	struct wtap_vap *avp;
+	struct wtap_softc *sc = ic->ic_softc;
 
-	if(ni == NULL){
-		printf("m->m_pkthdr.rcvif is NULL we can't radiotap_tx\n");
-	}else{
-		if (ieee80211_radiotap_active_vap(vap))
-			ieee80211_radiotap_tx(vap, m);
+	if (ni == NULL) {
+		printf("%s: m->m_pkthdr.rcvif is NULL\n", __func__);
+		m_freem(m);
+		return (EINVAL);
+	}
+	vap = ni->ni_vap;
+	avp = WTAP_VAP(vap);
+	if (ieee80211_radiotap_active_vap(vap)) {
+		wtap_tx_tap(sc);
+		ieee80211_radiotap_tx(vap, m);
 	}
 	if (m->m_flags & M_TXCB)
 		ieee80211_process_callback(ni, m, 0);
 	ieee80211_free_node(ni);
-	return wtap_medium_enqueue(avp, m);
+	return (wtap_medium_enqueue(avp, m));
 }
 
 static struct ieee80211_node *
@@ -646,7 +721,8 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	ic->ic_name = sc->name;
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_MBSS;
-	ic->ic_caps = IEEE80211_C_MBSS | IEEE80211_C_IBSS;
+	ic->ic_caps = IEEE80211_C_MBSS | IEEE80211_C_IBSS |
+	    IEEE80211_C_STA | IEEE80211_C_HOSTAP | IEEE80211_C_MONITOR;
 
 	ic->ic_max_keyix = 128; /* A value read from Atheros ATH_KEYMAX */
 
