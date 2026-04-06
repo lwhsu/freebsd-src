@@ -4,6 +4,11 @@
  * Copyright (c) 2010-2011 Monthadar Al Jaberi, TerraNet AB
  * All rights reserved.
  *
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by En-Wei Wu
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -43,10 +48,10 @@ hal_tx_proc(void *arg, int npending)
 #endif
 
 	hal = (struct wtap_hal *)arg;
-	for(;;){
+	for (;;) {
 		p = medium_get_next_packet(hal->hal_md);
-		if(p == NULL)
-		return;
+		if (p == NULL)
+			return;
 
 		hal->plugin->work(hal->plugin, p);
 
@@ -63,6 +68,7 @@ init_hal(struct wtap_hal *hal)
 {
 
 	DWTAP_PRINTF("%s\n", __func__);
+	memset(hal->hal_devs_set, 0, sizeof(hal->hal_devs_set));
 	mtx_init(&hal->hal_mtx, "wtap_hal mtx", NULL, MTX_DEF | MTX_RECURSE);
 
 	hal->hal_md = (struct wtap_medium *)malloc(sizeof(struct wtap_medium),
@@ -105,7 +111,7 @@ deinit_hal(struct wtap_hal *hal)
 int32_t
 new_wtap(struct wtap_hal *hal, int32_t id)
 {
-	static const uint8_t mac_pool[64][IEEE80211_ADDR_LEN] = {
+	static const uint8_t mac_pool[MAX_NBR_WTAP][IEEE80211_ADDR_LEN] = {
 	    {0,152,154,152,150,151},
 	    {0,152,154,152,150,152},
 	    {0,152,154,152,150,153},
@@ -171,14 +177,38 @@ new_wtap(struct wtap_hal *hal, int32_t id)
 	    {0,152,154,152,157,157},
 	    {0,152,154,152,157,158}
 	    };
+	const uint8_t *macaddr;
+	int i;
 
 	DWTAP_PRINTF("%s\n", __func__);
-	uint8_t const *macaddr = mac_pool[id];
-	if(hal->hal_devs[id] != NULL){
-		printf("error, wtap_id=%d already created\n", id);
-		return -1;
+
+	/*
+	 * id < 0 requests auto-assignment: find the lowest unused slot.
+	 */
+	if (id < 0) {
+		for (i = 0; i < MAX_NBR_WTAP; i++) {
+			if (!isset(hal->hal_devs_set, i)) {
+				id = i;
+				break;
+			}
+		}
+		if (i == MAX_NBR_WTAP) {
+			DWTAP_PRINTF("%s: no free wtap slots\n", __func__);
+			return (-1);
+		}
+	} else if (id >= MAX_NBR_WTAP) {
+		DWTAP_PRINTF("error, wtap_id=%d must be between 0 and %d\n",
+		    id, MAX_NBR_WTAP - 1);
+		return (-1);
 	}
 
+	if (isset(hal->hal_devs_set, id)) {
+		printf("error, wtap_id=%d already created\n", id);
+		return (-1);
+	}
+
+	macaddr = mac_pool[id];
+	setbit(hal->hal_devs_set, id);
 	hal->hal_devs[id] = (struct wtap_softc *)malloc(
 	    sizeof(struct wtap_softc), M_WTAP, M_NOWAIT | M_ZERO);
 	hal->hal_devs[id]->sc_md = hal->hal_md;
@@ -189,12 +219,15 @@ new_wtap(struct wtap_hal *hal, int32_t id)
 	mtx_init(&hal->hal_devs[id]->sc_mtx, "wtap_softc mtx", NULL,
 	    MTX_DEF | MTX_RECURSE);
 
-	if(wtap_attach(hal->hal_devs[id], macaddr)){
+	if (wtap_attach(hal->hal_devs[id], macaddr)) {
 		printf("%s, can't alloc new wtap\n", __func__);
-		return -1;
+		clrbit(hal->hal_devs_set, id);
+		free(hal->hal_devs[id], M_WTAP);
+		hal->hal_devs[id] = NULL;
+		return (-1);
 	}
 
-	return 0;
+	return (id);
 }
 
 int32_t
@@ -202,17 +235,25 @@ free_wtap(struct wtap_hal *hal, int32_t id)
 {
 
 	DWTAP_PRINTF("%s\n", __func__);
-	if(hal->hal_devs[id] == NULL){
-		printf("error, wtap_id=%d never created\n", id);
-		return -1;
+
+	if (id < 0 || id >= MAX_NBR_WTAP) {
+		DWTAP_PRINTF("error, wtap_id=%d must be between 0 and %d\n",
+		    id, MAX_NBR_WTAP - 1);
+		return (-1);
 	}
 
-	if(wtap_detach(hal->hal_devs[id]))
-		printf("%s, can't alloc new wtap\n", __func__);
+	if (!isset(hal->hal_devs_set, id)) {
+		printf("error, wtap_id=%d never created\n", id);
+		return (-1);
+	}
+
+	if (wtap_detach(hal->hal_devs[id]))
+		printf("%s, can't detach wtap%d\n", __func__, id);
+	clrbit(hal->hal_devs_set, id);
 	mtx_destroy(&hal->hal_devs[id]->sc_mtx);
 	free(hal->hal_devs[id], M_WTAP);
 	hal->hal_devs[id] = NULL;
-	return 0;
+	return (0);
 }
 
 void

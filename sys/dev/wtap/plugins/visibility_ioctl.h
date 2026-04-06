@@ -4,6 +4,11 @@
  * Copyright (c) 2011 Monthadar Al Jaberi, TerraNet AB
  * All rights reserved.
  *
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by En-Wei Wu
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -30,19 +35,50 @@
  */
 
 /*
- * Ioctl-related defintions for the Wireless TAP plugins.
+ * Ioctl-related definitions for the Wireless TAP visibility plugin.
  */
 
 #ifndef _VISIBILITY_IOCTL_H
 #define _VISIBILITY_IOCTL_H
 
+#include <sys/param.h>
+
+#ifndef MAX_NBR_WTAP
+#define MAX_NBR_WTAP	64
+#endif
+
+/*
+ * Number of uint32_t words required to represent MAX_NBR_WTAP bits.
+ * Distinct from the bits-per-word constant used for bit arithmetic.
+ */
+#ifndef VIS_MAP_NWORDS
+#define VIS_MAP_NWORDS	(MAX_NBR_WTAP / (sizeof(uint32_t) * NBBY))
+#endif
+
+/*
+ * Number of bits in each vis_map.map[] element.
+ * Use this constant (not VIS_MAP_NWORDS) when computing word/bit indices.
+ */
+#define VIS_MAP_BITS_PER_WORD	(sizeof(uint32_t) * NBBY)
+
 struct link {
-      int	op; //0 remove, 1 link
-      int 	id1;
-      int	id2;
+	int	op;	/* 0 = remove link, 1 = add link */
+	int	id1;
+	int	id2;
 };
 
-#define VISIOCTLOPEN _IOW('W', 3, int) // 0 close, 1 open
-#define VISIOCTLLINK _IOW('W', 4, struct link) //
+struct vis_map_req {
+	int		id;
+	uint32_t	map[VIS_MAP_NWORDS];
+};
+
+/* Set medium state: arg is int (0 = close, 1 = open). */
+#define VISIOCTLSETOPEN	_IOW('V', 1, int)
+/* Add or remove a directed link. */
+#define VISIOCTLSETLINK	_IOW('V', 2, struct link)
+/* Read medium open/close state: arg is int. */
+#define VISIOCTLGETOPEN	_IOR('V', 3, int)
+/* Read the link map for a given node id. */
+#define VISIOCTLGETMAP	_IOWR('V', 4, struct vis_map_req)
 
 #endif

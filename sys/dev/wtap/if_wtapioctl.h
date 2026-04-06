@@ -7,6 +7,11 @@
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
  * All rights reserved.
  *
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by En-Wei Wu
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -46,8 +51,9 @@
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
 #define	SIOCZATHSTATS	_IOWR('i', 139, struct ifreq)
 
-#define WTAPIOCTLCRT	_IOW('W', 1, int)
-#define WTAPIOCTLDEL	_IOW('W', 2, int)
+#define WTAPIOCTLCRT	_IOWR('W', 1, int)	/* create wtap; returns id */
+#define WTAPIOCTLDEL	_IOW('W', 2, int)	/* delete wtap by id */
+#define WTAPIOCTLLIST	_IOR('W', 3, uint64_t)	/* bitmap of active ids */
 
 struct wtap_stats {
 	u_int32_t	ast_watchdog;	/* device reset by watchdog */

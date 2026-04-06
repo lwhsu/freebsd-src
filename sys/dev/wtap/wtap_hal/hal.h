@@ -4,6 +4,11 @@
  * Copyright (c) 2010-2011 Monthadar Al Jaberi, TerraNet AB
  * All rights reserved.
  *
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by En-Wei Wu
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -42,7 +47,9 @@ struct wtap_hal {
 	struct wtap_medium	*hal_md;
 	struct mtx		hal_mtx;
 	struct wtap_plugin	*plugin;
-	struct wtap_softc 	*hal_devs[MAX_NBR_WTAP];
+	struct wtap_softc	*hal_devs[MAX_NBR_WTAP];
+	/* Bitmap tracking which device IDs are in use. */
+	uint32_t		hal_devs_set[WTAP_HAL_BITMAP_SIZE];
 	/* hardware information */
 	struct hw {
 		struct callout timer_intr;

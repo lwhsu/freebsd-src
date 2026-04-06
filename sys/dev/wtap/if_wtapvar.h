@@ -4,6 +4,11 @@
  * Copyright (c) 2010-2011 Monthadar Al Jaberi, TerraNet AB
  * All rights reserved.
  *
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by En-Wei Wu
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -54,7 +59,19 @@
 
 #include "if_wtapioctl.h"
 
-#define MAX_NBR_WTAP (64)
+/* Maximum number of simulated wireless nodes. */
+#ifndef MAX_NBR_WTAP
+#define MAX_NBR_WTAP	64
+#endif
+
+/*
+ * Number of uint32_t words needed to hold MAX_NBR_WTAP bits.
+ * Used to size the device-present bitmap in struct wtap_hal.
+ */
+#ifndef WTAP_HAL_BITMAP_SIZE
+#define WTAP_HAL_BITMAP_SIZE	(MAX_NBR_WTAP / (sizeof(uint32_t) * NBBY))
+#endif
+
 #define BEACON_INTRERVAL (1000)
 
 MALLOC_DECLARE(M_WTAP);

@@ -1,0 +1,149 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2023 The FreeBSD Foundation
+.\"
+.\" This software was developed by En-Wei Wu under sponsorship from
+.\" the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd January 6, 2023
+.Dt WTAPCTL 8
+.Os
+.Sh NAME
+.Nm wtapctl
+.Nd configure wtap(4) virtual wireless devices
+.Sh SYNOPSIS
+.Nm
+.Cm device create
+.Op Ar id
+.Nm
+.Cm device delete
+.Ar id
+.Nm
+.Cm device list
+.Nm
+.Cm vis Cm open | Cm close
+.Nm
+.Cm vis Cm add | Cm delete
+.Ar id_from Ar id_to
+.Nm
+.Cm vis Cm show
+.Ar id
+.Sh DESCRIPTION
+The
+.Nm
+utility manages two aspects of the
+.Xr wtap 4
+virtual 802.11 wireless simulator: device lifecycle and visibility control.
+.Pp
+The
+.Cm device
+subcommand creates and deletes wtap devices.
+Once a device is created,
+.Xr ifconfig 8
+can create network interfaces on top of it (e.g.\&
+.Dq ifconfig wlan create wlandev wtap0 wlanmode adhoc ) .
+.Pp
+The
+.Cm vis
+subcommand controls which devices can hear each other.
+The visibility medium must be opened before any packet exchange can occur.
+Links are directed: adding a link from
+.Ar id_from
+to
+.Ar id_to
+allows
+.Ar id_from
+to transmit to
+.Ar id_to ,
+but not the reverse.
+.Sh SUBCOMMANDS
+.Bl -tag -width indent
+.It Cm device create Op Ar id
+Create a wtap device.
+If
+.Ar id
+is omitted or negative, an available id is assigned automatically
+and the resulting name (e.g.\&
+.Dq wtap3 )
+is printed to standard output.
+If
+.Ar id
+is specified, that exact id is used.
+.It Cm device delete Ar id
+Destroy the wtap device with the given
+.Ar id .
+.It Cm device list
+Print the names of all active wtap devices, one per line.
+.It Cm vis open
+Enable packet exchange between linked devices.
+.It Cm vis close
+Disable all packet exchange.
+.It Cm vis add Ar id_from Ar id_to
+Allow
+.Ar id_from
+to transmit frames that
+.Ar id_to
+will receive.
+.It Cm vis delete Ar id_from Ar id_to
+Remove the directed link from
+.Ar id_from
+to
+.Ar id_to .
+.It Cm vis show Ar id
+Display the medium state and all nodes reachable from
+.Ar id .
+.El
+.Sh EXAMPLES
+Create two wtap devices, configure bidirectional visibility, and set up
+an ad-hoc network:
+.Bd -literal -offset indent
+# wtapctl device create 0
+# wtapctl device create 1
+# wtapctl vis open
+# wtapctl vis add 0 1
+# wtapctl vis add 1 0
+# ifconfig wlan create wlandev wtap0 wlanmode adhoc ssid test
+# ifconfig wlan create wlandev wtap1 wlanmode adhoc ssid test
+.Ed
+.Pp
+List all active devices:
+.Bd -literal -offset indent
+# wtapctl device list
+.Ed
+.Pp
+Check which nodes wtap0 can reach:
+.Bd -literal -offset indent
+# wtapctl vis show 0
+.Ed
+.Sh SEE ALSO
+.Xr wtap 4 ,
+.Xr wlan 4 ,
+.Xr net80211 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 14.0 .

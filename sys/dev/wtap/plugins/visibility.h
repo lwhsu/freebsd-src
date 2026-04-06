@@ -4,6 +4,11 @@
  * Copyright (c) 2011 Monthadar Al Jaberi, TerraNet AB
  * All rights reserved.
  *
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by En-Wei Wu
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -36,20 +41,20 @@
 
 #define CDEV_GET_SOFTC(x) (x)->si_drv1
 
-#define ARRAY_SIZE (32) //We support a maximum of 1024 nodes for now
-
+/* Per-node link bitmap: VIS_MAP_NWORDS uint32_t words cover MAX_NBR_WTAP bits. */
 struct vis_map {
-	uint32_t map[ARRAY_SIZE]; 
+	uint32_t map[VIS_MAP_NWORDS];
 };
 
 struct visibility_plugin {
 	struct wtap_plugin	base;
 	struct mtx		pl_mtx;
-	struct vis_map pl_node[MAX_NBR_WTAP];
+	struct vis_map		pl_node[MAX_NBR_WTAP];
 };
 
 void visibility_init(struct wtap_plugin *);
 void visibility_deinit(struct wtap_plugin *);
 void visibility_work(struct wtap_plugin *, struct packet *);
+int  vis_ioctl(struct cdev *, u_long, caddr_t, int, struct thread *);
 
 #endif

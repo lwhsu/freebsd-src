@@ -4,6 +4,11 @@
  * Copyright (c) 2010-2011 Monthadar Al Jaberi, TerraNet AB
  * All rights reserved.
  *
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by En-Wei Wu
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -74,17 +79,23 @@ wtap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
     int fflag, struct thread *td)
 {
 	int error = 0;
+	int id;
 
 	CURVNET_SET(CRED_TO_VNET(curthread->td_ucred));
 
-	switch(cmd) {
+	switch (cmd) {
 	case WTAPIOCTLCRT:
-		if(new_wtap(hal, *(int *)data))
+		if ((id = new_wtap(hal, *(int *)data)) < 0)
 			error = EINVAL;
+		else
+			memcpy(data, &id, sizeof(int));
 		break;
 	case WTAPIOCTLDEL:
-		if(free_wtap(hal, *(int *)data))
+		if (free_wtap(hal, *(int *)data))
 			error = EINVAL;
+		break;
+	case WTAPIOCTLLIST:
+		memcpy(data, &hal->hal_devs_set, sizeof(hal->hal_devs_set));
 		break;
 	default:
 		DWTAP_PRINTF("Unknown WTAP IOCTL\n");
@@ -92,7 +103,7 @@ wtap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	}
 
 	CURVNET_RESTORE();
-	return error;
+	return (error);
 }
 
 /* The function called at load/unload. */

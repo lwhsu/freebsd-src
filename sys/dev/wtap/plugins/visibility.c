@@ -4,6 +4,11 @@
  * Copyright (c) 2010-2011 Monthadar Al Jaberi, TerraNet AB
  * All rights reserved.
  *
+ * Copyright (c) 2023 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by En-Wei Wu
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -39,9 +44,6 @@
 
 #include "visibility.h"
 
-/* Function prototypes */
-static d_ioctl_t	vis_ioctl;
-
 static struct cdevsw vis_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	0,
@@ -55,8 +57,8 @@ visibility_init(struct wtap_plugin *plugin)
 	struct visibility_plugin *vis_plugin;
 
 	vis_plugin = (struct visibility_plugin *) plugin;
-	plugin->wp_sdev = make_dev(&vis_cdevsw,0,UID_ROOT,GID_WHEEL,0600,
-	    (const char *)"visctl");
+	plugin->wp_sdev = make_dev(&vis_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	    "visctl");
 	plugin->wp_sdev->si_drv1 = vis_plugin;
 	mtx_init(&vis_plugin->pl_mtx, "visibility_plugin mtx",
 	    NULL, MTX_DEF | MTX_RECURSE);
@@ -75,8 +77,12 @@ visibility_deinit(struct wtap_plugin *plugin)
 	printf("Removing visibility wtap plugin...\n");
 }
 
-/* We need to use a mutex lock when we read out a visibility map
- * and when we change visibility map from user space through IOCTL
+/*
+ * Broadcast a packet to all nodes that have a link from p->id.
+ * The visibility map uses VIS_MAP_NWORDS uint32_t words; each bit
+ * represents one potential destination node.
+ *
+ * We need to use a mutex when reading or modifying the visibility map.
  */
 void
 visibility_work(struct wtap_plugin *plugin, struct packet *p)
@@ -85,6 +91,7 @@ visibility_work(struct wtap_plugin *plugin, struct packet *p)
 	    (struct visibility_plugin *) plugin;
 	struct wtap_hal *hal = (struct wtap_hal *)vis_plugin->base.wp_hal;
 	struct vis_map *map;
+	int bpw = VIS_MAP_BITS_PER_WORD;
 
 	KASSERT(mtod(p->m, const char *) != (const char *) 0xdeadc0de ||
 	    mtod(p->m, const char *) != NULL,
@@ -95,33 +102,29 @@ visibility_work(struct wtap_plugin *plugin, struct packet *p)
 	map = &vis_plugin->pl_node[p->id];
 	mtx_unlock(&vis_plugin->pl_mtx);
 
-	/* This is O(n*n) which is not optimal for large
-	 * number of nodes. Another way of doing it is
-	 * creating groups of nodes that hear each other.
-	 * Atleast for this simple static node plugin.
+	/*
+	 * This is O(n*n) which is not optimal for large number of nodes.
+	 * Another way of doing it is creating groups of nodes that hear
+	 * each other.  At least for this simple static node plugin.
 	 */
-	for(int i=0; i<ARRAY_SIZE; ++i){
-		uint32_t index = map->map[i];
-		for(int j=0; j<32; ++j){
-			int vis = index & 0x01;
-			if(vis){
-				int k = i*ARRAY_SIZE + j;
-				if(hal->hal_devs[k] != NULL
-				    && hal->hal_devs[k]->up == 1){
-					struct wtap_softc *sc =
-					    hal->hal_devs[k];
-					struct mbuf *m =
-					    m_dup(p->m, M_NOWAIT);
+	for (int i = 0; i < VIS_MAP_NWORDS; i++) {
+		uint32_t word = map->map[i];
+
+		for (int j = 0; j < bpw; j++) {
+			if (word & 0x1) {
+				int k = i * bpw + j;
+
+				if (hal->hal_devs[k] != NULL &&
+				    hal->hal_devs[k]->up == 1) {
+					struct wtap_softc *sc = hal->hal_devs[k];
+					struct mbuf *m = m_dup(p->m, M_NOWAIT);
+
 					DWTAP_PRINTF("[%d] duplicated old_m=%p"
-					    "to new_m=%p\n", p->id, p->m, m);
-#if 0
-					printf("[%d] sending to %d\n",
-					    p->id, k);
-#endif
+					    " to new_m=%p\n", p->id, p->m, m);
 					wtap_inject(sc, m);
 				}
 			}
-			index = index >> 1;
+			word >>= 1;
 		}
 	}
 }
@@ -129,34 +132,45 @@ visibility_work(struct wtap_plugin *plugin, struct packet *p)
 static void
 add_link(struct visibility_plugin *vis_plugin, struct link *l)
 {
+	struct vis_map *map;
+	int bpw = VIS_MAP_BITS_PER_WORD;
+	int index = l->id2 / bpw;
+	int bit = l->id2 % bpw;
 
 	mtx_lock(&vis_plugin->pl_mtx);
-	struct vis_map *map = &vis_plugin->pl_node[l->id1];
-	int index = l->id2/ARRAY_SIZE;
-	int bit = l->id2 % ARRAY_SIZE;
-	uint32_t value = 1 << bit;
-	map->map[index] = map->map[index] | value;
+	map = &vis_plugin->pl_node[l->id1];
+	map->map[index] |= (1u << bit);
 	mtx_unlock(&vis_plugin->pl_mtx);
-#if 0
-	printf("l->id1=%d, l->id2=%d, map->map[%d] = %u, bit=%d\n",
-	    l->id1, l->id2, index, map->map[index], bit);
-#endif
 }
 
 static void
 del_link(struct visibility_plugin *vis_plugin, struct link *l)
 {
+	struct vis_map *map;
+	int bpw = VIS_MAP_BITS_PER_WORD;
+	int index = l->id2 / bpw;
+	int bit = l->id2 % bpw;
 
 	mtx_lock(&vis_plugin->pl_mtx);
-	struct vis_map *map = &vis_plugin->pl_node[l->id1];
-	int index = l->id2/ARRAY_SIZE;
-	int bit = l->id2 % ARRAY_SIZE;
-	uint32_t value = 1 << bit;
-	map->map[index] = map->map[index] & ~value;
+	map = &vis_plugin->pl_node[l->id1];
+	map->map[index] &= ~(1u << bit);
 	mtx_unlock(&vis_plugin->pl_mtx);
-#if 0
-	printf("map->map[index] = %u\n", map->map[index]);
-#endif
+}
+
+static int
+get_link(struct visibility_plugin *vis_plugin, struct vis_map_req *req)
+{
+	struct wtap_hal *hal = vis_plugin->base.wp_hal;
+
+	if (req->id < 0 || req->id >= MAX_NBR_WTAP ||
+	    !isset(hal->hal_devs_set, req->id))
+		return (-1);
+
+	mtx_lock(&vis_plugin->pl_mtx);
+	memcpy(&req->map, &vis_plugin->pl_node[req->id], sizeof(req->map));
+	mtx_unlock(&vis_plugin->pl_mtx);
+
+	return (0);
 }
 
 int
@@ -167,27 +181,33 @@ vis_ioctl(struct cdev *sdev, u_long cmd, caddr_t data,
 	    (struct visibility_plugin *) sdev->si_drv1;
 	struct wtap_hal *hal = vis_plugin->base.wp_hal;
 	struct link l;
+	struct vis_map_req *req;
 	int op;
 	int error = 0;
 
 	CURVNET_SET(CRED_TO_VNET(curthread->td_ucred));
-	switch(cmd) {
-	case VISIOCTLOPEN:
-		op =  *(int *)data; 
-		if(op == 0)
+	switch (cmd) {
+	case VISIOCTLSETOPEN:
+		op = *(int *)data;
+		if (op == 0)
 			medium_close(hal->hal_md);
 		else
 			medium_open(hal->hal_md);
 		break;
-	case VISIOCTLLINK:
+	case VISIOCTLSETLINK:
 		l = *(struct link *)data;
-		if(l.op == 0)
+		if (l.op == 0)
 			del_link(vis_plugin, &l);
 		else
 			add_link(vis_plugin, &l);
-#if 0
-		printf("op=%d, id1=%d, id2=%d\n", l.op, l.id1, l.id2);
-#endif
+		break;
+	case VISIOCTLGETOPEN:
+		memcpy(data, &hal->hal_md->open, sizeof(int));
+		break;
+	case VISIOCTLGETMAP:
+		req = (struct vis_map_req *)data;
+		if (get_link(vis_plugin, req) < 0)
+			error = EINVAL;
 		break;
 	default:
 		DWTAP_PRINTF("Unknown WTAP IOCTL\n");
@@ -195,5 +215,5 @@ vis_ioctl(struct cdev *sdev, u_long cmd, caddr_t data,
 	}
 
 	CURVNET_RESTORE();
-	return error;
+	return (error);
 }
