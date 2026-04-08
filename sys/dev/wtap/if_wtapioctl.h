@@ -45,8 +45,22 @@
 #ifndef _DEV_WTAP_WTAPIOCTL_H
 #define _DEV_WTAP_WTAPIOCTL_H
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <net80211/ieee80211_radiotap.h>
+
+/* Maximum number of simulated wireless nodes. */
+#ifndef MAX_NBR_WTAP
+#define MAX_NBR_WTAP		64
+#endif
+
+/*
+ * Number of uint32_t words needed to hold MAX_NBR_WTAP bits.
+ * Sizes the device-present bitmap returned by WTAPIOCTLLIST.
+ */
+#ifndef WTAP_HAL_BITMAP_SIZE
+#define WTAP_HAL_BITMAP_SIZE	(MAX_NBR_WTAP / (sizeof(uint32_t) * NBBY))
+#endif
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
 #define	SIOCZATHSTATS	_IOWR('i', 139, struct ifreq)

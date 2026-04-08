@@ -140,7 +140,7 @@ vis_link_show(const struct cmd *cmd __unused, int id)
 	printf("medium: %s\n", is_open ? "open" : "closed");
 	printf("wtap%d ->", id);
 
-	for (int i = 0; i < VIS_MAP_NWORDS; i++) {
+	for (int i = 0; i < (int)VIS_MAP_NWORDS; i++) {
 		uint32_t word = req.map[i];
 
 		for (int j = 0; j < bpw; j++) {
